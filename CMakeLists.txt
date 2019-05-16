@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
+set(CMAKE_CXX_STANDARD 17)
+
 project(ceraph)
 
 set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -33,7 +35,7 @@ llvm_map_components_to_libnames(LLVM_LIBS support core irreader)
 set(LINK_LIBS ${LINK_LIBS} ${LLVM_LIBS})
 
 find_package(BISON 3 REQUIRED)
-find_package(FLEX REQUIRED)
+find_package(FLEX 2.6 REQUIRED)
 set(YACC_INPUT_FILE ${GENERATOR_SOURCE_DIR}/parser.y)
 set(LEX_INPUT_FILE ${GENERATOR_SOURCE_DIR}/lexer.l)
 BISON_TARGET(Parser ${YACC_INPUT_FILE}
