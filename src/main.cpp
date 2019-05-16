@@ -2,7 +2,9 @@
 
 #include <iostream>
 
-extern "C" int yywrap() { return 1; }
+extern "C" int yywrap() {
+    return 1;
+}
 int yyerror(const char* err) {
     std::cerr << err;
     return 1;
