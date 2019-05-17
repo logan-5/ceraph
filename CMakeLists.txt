@@ -24,7 +24,13 @@ set(INCLUDE_DIRS ${INCLUDE_DIRS} ${GENERATED_DEST_DIR})
 #     "${PROJECT_SOURCE_DIR}/*.ipp"
 # )
 
+set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/ast.hpp)
+set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/ast.cpp)
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/main.cpp)
+set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/operator.hpp)
+set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/operator.cpp)
+set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/type.hpp)
+set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/type.cpp)
 
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")

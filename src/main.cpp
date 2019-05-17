@@ -1,3 +1,5 @@
+#include "ast.hpp"
+#include "operator.hpp"
 #include "parser.hpp"
 
 #include <iostream>

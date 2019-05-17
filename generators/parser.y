@@ -1,8 +1,69 @@
 %{
+
+#include "ast.hpp"
+#include "operator.hpp"
+
+#include <iostream>
+
 int yylex();
 int yyerror(const char*);
+
+#define YYSTYPE ast::Node
+
+template <Operator::Unary Op, typename Operand>
+ast::UnaryExpr make_unary(Operand&& operand);
+template <Operator::Binary Op, typename Lhs, typename Rhs>
+ast::BinaryExpr make_binary(Lhs&& lhs, Rhs&& rhs);
+
 %}
 
+%token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
+%token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
+%token AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
+%token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
+%token XOR_ASSIGN OR_ASSIGN TYPE_NAME
+
+%token TYPEDEF EXTERN STATIC AUTO REGISTER
+%token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
+%token STRUCT UNION ENUM ELLIPSIS
+
+%token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
+
 %%
-program:;
+program: expression ';' { std::cout << $1 << '\n'; } program 
+    |
+    ;
+
+primary_expression: 
+    IDENTIFIER
+	| CONSTANT
+	| STRING_LITERAL
+	| '(' expression ')' { $$ = std::move($2); }
+	;
+
+unary_expression: primary_expression
+    | '-' primary_expression { $$ = make_unary<Operator::Unary::Minus>($2); };
+
+product_expression: unary_expression
+    | product_expression '*' unary_expression { $$ = make_binary<Operator::Binary::Multiply>($1, $3); }
+    | product_expression '/' unary_expression { $$ = make_binary<Operator::Binary::Divide>($1, $3); }
+    | product_expression '%' unary_expression { $$ = make_binary<Operator::Binary::Modulo>($1, $3); }
+    ;
+
+term_expression: product_expression
+    | term_expression '+' product_expression { $$ = make_binary<Operator::Binary::Plus>($1, $3); }
+    | term_expression '-' product_expression { $$ = make_binary<Operator::Binary::Minus>($1, $3); }
+    ;
+
+expression: term_expression;
+
 %%
+
+template <Operator::Unary Op, typename Operand>
+ast::UnaryExpr make_unary(Operand&& operand) {
+    return ast::UnaryExpr{Op, ast::make_node(std::move(operand))};
+}
+template <Operator::Binary Op, typename Lhs, typename Rhs>
+ast::BinaryExpr make_binary(Lhs&& lhs, Rhs&& rhs) {
+    return ast::BinaryExpr{Op, ast::make_node(std::move(lhs)), ast::make_node(std::move(rhs))};
+}
