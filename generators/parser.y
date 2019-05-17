@@ -67,9 +67,9 @@ expression: term_expression;
 
 template <Operator::Unary Op, typename Operand>
 ast::UnaryExpr make_unary(Operand&& operand) {
-    return ast::UnaryExpr{Op, ast::make_node(std::move(operand))};
+    return ast::UnaryExpr{Op, ast::make_nodeptr(std::move(operand))};
 }
 template <Operator::Binary Op, typename Lhs, typename Rhs>
 ast::BinaryExpr make_binary(Lhs&& lhs, Rhs&& rhs) {
-    return ast::BinaryExpr{Op, ast::make_node(std::move(lhs)), ast::make_node(std::move(rhs))};
+    return ast::BinaryExpr{Op, ast::make_nodeptr(std::move(lhs)), ast::make_nodeptr(std::move(rhs))};
 }

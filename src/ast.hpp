@@ -14,7 +14,7 @@ struct Node;
 
 using NodePtr = std::shared_ptr<Node>;
 template <typename NodeType = Node, typename... Args>
-NodePtr make_node(Args&&... args) {
+NodePtr make_nodeptr(Args&&... args) {
     return std::make_shared<NodeType>(std::forward<Args>(args)...);
 }
 
