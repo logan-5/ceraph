@@ -16,7 +16,7 @@ struct Dump {
     template <typename Rep, Type::ID Ty>
     void operator()(const Literal<Rep, Ty>& lit) const {
         indent();
-        ostr << lit.rep;
+        ostr << lit.getType() << ": " << lit.rep;
     }
 
     void operator()(const UnaryExpr& expr) const {

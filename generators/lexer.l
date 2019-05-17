@@ -5,10 +5,16 @@
 #include "parser.hpp"
 
 #include <iostream>
+#include <optional>
 
 yytokentype check_type();
 void comment();
 void count();
+
+template <typename Int>
+std::optional<Int> parse_int(const char* str);
+template <typename Float>
+std::optional<Float> parse_float(const char* str);
 
 %}
 
@@ -16,7 +22,8 @@ D			[0-9]
 L			[a-zA-Z_]
 H			[a-fA-F0-9]
 E			[Ee][+-]?{D}+
-FS			(f|F|l|L)
+FS			(f|F)
+LFS         (l|L)
 IS			(u|U|l|L)*
 
 %%
@@ -57,16 +64,22 @@ IS			(u|U|l|L)*
 
 {L}({L}|{D})*		{ count(); return check_type(); }
 
-0[xX]{H}+{IS}?		{ count(); /*yylval = ast::IntLiteral(std::atoi(yytext));*/ return CONSTANT; }
-0{D}+{IS}?		{ count(); return CONSTANT; }
-{D}+{IS}?		{ count(); return CONSTANT; }
+0[xX]{H}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval = ast::IntLiteral(*i); return CONSTANT; } return LEX_ERROR; }
+0{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval = ast::IntLiteral(*i); return CONSTANT; } return LEX_ERROR; }
+{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval = ast::IntLiteral(*i); return CONSTANT; } return LEX_ERROR; }
 L?'(\\.|[^\\'])+'	{ count(); return CONSTANT; }
 
-{D}+{E}{FS}?		{ count(); return CONSTANT; }
-{D}*"."{D}+({E})?{FS}?	{ count(); return CONSTANT; }
-{D}+"."{D}*({E})?{FS}?	{ count(); return CONSTANT; }
+{D}+{E}		{ count(); if (auto f = parse_float<double>(yytext)) { yylval = ast::DoubleLiteral(*f); return CONSTANT; } return LEX_ERROR; }
+{D}*"."{D}+({E})?	{ count(); if (auto f = parse_float<double>(yytext)) { yylval = ast::DoubleLiteral(*f); return CONSTANT; } }
+{D}+"."{D}*({E})?	{ count(); if (auto f = parse_float<double>(yytext)) { yylval = ast::DoubleLiteral(*f); return CONSTANT; } }
+{D}+{E}{FS}		    { count(); if (auto f = parse_float<float>(yytext)) { yylval = ast::FloatLiteral(*f); return CONSTANT; } return LEX_ERROR; }
+{D}*"."{D}+({E})?{FS}	{ count(); if (auto f = parse_float<float>(yytext)) { yylval = ast::FloatLiteral(*f); return CONSTANT; } return LEX_ERROR; }
+{D}+"."{D}*({E})?{FS}	{ count(); if (auto f = parse_float<float>(yytext)) { yylval = ast::FloatLiteral(*f); return CONSTANT; } return LEX_ERROR; }
+{D}+{E}{LFS}		    { count(); if (auto f = parse_float</*long*/ double>(yytext)) { yylval = ast::/*Long*/DoubleLiteral(*f); return CONSTANT; } return LEX_ERROR; }
+{D}*"."{D}+({E})?{LFS}	{ count(); if (auto f = parse_float</*long*/ double>(yytext)) { yylval = ast::/*Long*/DoubleLiteral(*f); return CONSTANT; } return LEX_ERROR; }
+{D}+"."{D}*({E})?{LFS}	{ count(); if (auto f = parse_float</*long*/ double>(yytext)) { yylval = ast::/*Long*/DoubleLiteral(*f); return CONSTANT; } return LEX_ERROR; }
 
-L?\"(\\.|[^\\"])*\"	{ count(); return STRING_LITERAL; }
+L?\"(\\.|[^\\"])*\"	{ count(); yylval = ast::StringLiteral(yytext); return STRING_LITERAL; }
 
 "..."			{ count(); return ELLIPSIS; }
 ">>="			{ count(); return RIGHT_ASSIGN; }
@@ -154,4 +167,43 @@ yytokentype check_type() {
 */
 
 	return IDENTIFIER;
+}
+
+template <typename Int>
+std::optional<Int> parse_int(const char* str) {
+    char* end;
+    Int ret = static_cast<Int>(std::strtol(str, &end, 0));
+    if (!*end) {
+        return ret;
+    }
+    return std::nullopt;
+}
+
+namespace {
+template<typename F> F to_float(const char* start, char** end);
+template<>
+float to_float<float>(const char* start, char** end) {
+    return std::strtof(start, end);
+}
+template<>
+double to_float<double>(const char* start, char** end) {
+    return std::strtod(start, end);
+}
+template<>
+long double to_float<long double>(const char* start, char** end) {
+    return std::strtold(start, end);
+}
+}
+
+template <typename Float>
+std::optional<Float> parse_float(const char* str) {
+    char* end;
+    Float ret = to_float<Float>(str, &end);
+    if (const char last = *end; 
+        !last 
+        || (std::is_same_v<std::remove_cv_t<Float>, float> && (last == 'f' || last == 'F')) 
+        || (std::is_same_v<std::remove_cv_t<Float>, /*long*/ double> && (last == 'l' || last == 'L'))) { 
+        return ret;
+    }
+    return std::nullopt;
 }

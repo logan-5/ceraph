@@ -8,8 +8,6 @@
 int yylex();
 int yyerror(const char*);
 
-#define YYSTYPE ast::Node
-
 template <Operator::Unary Op, typename Operand>
 ast::UnaryExpr make_unary(Operand&& operand);
 template <Operator::Binary Op, typename Lhs, typename Rhs>
@@ -17,11 +15,14 @@ ast::BinaryExpr make_binary(Lhs&& lhs, Rhs&& rhs);
 
 %}
 
+%define api.value.type {ast::Node}
+
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
 %token XOR_ASSIGN OR_ASSIGN TYPE_NAME
+%token LEX_ERROR
 
 %token TYPEDEF EXTERN STATIC AUTO REGISTER
 %token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
@@ -30,9 +31,14 @@ ast::BinaryExpr make_binary(Lhs&& lhs, Rhs&& rhs);
 %token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
 
 %%
-program: expression ';' { std::cout << $1 << '\n'; } program 
-    |
+program: lines
+    | err program
     ;
+
+err: error | LEX_ERROR { std::cerr << "lex error\n"; };
+
+lines: | lines line;
+line: expression ';' { std::cout << $1 << '\n'; } | ';';
 
 primary_expression: 
     IDENTIFIER

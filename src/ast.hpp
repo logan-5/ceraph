@@ -24,7 +24,7 @@ struct Literal {
     template <typename T>
     Literal(T&& t) : rep{std::forward<T>(t)} {}
 
-    constexpr Type::ID getType() const noexcept { return Ty; }
+    static constexpr Type::ID getType() noexcept { return Ty; }
     Rep rep;
 };
 using StringLiteral = Literal<std::string, Type::ID::StringLiteral>;
