@@ -118,7 +118,8 @@ term_expression: product_expression { $$ = std::move($1); }
 expression: term_expression { $$ = std::move($1); };
 
 function_proto: type_or_void IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{$1, std::move($2), std::move($4)}; };
-maybe_param_list: param_list { $$ = std::move($1); } | { $$ = {}; } | VOID { $$ = {}; };
+maybe_param_list: param_list { $$ = std::move($1); } | empty_param_list { $$ = {}; };
+empty_param_list: | VOID;
 param_list: param { $$ = {std::move($1)}; } 
     | param_list ',' param { $1.push_back(std::move($3)); $$ = std::move($1); };
 param: NONVOID_TYPE IDENTIFIER { $$ = {$1, std::move($2)}; }
