@@ -59,9 +59,10 @@ IS			(u|U|l|L)*
 "union"			{ count(); return token::UNION; }
 "unsigned"		{ count(); return token::UNSIGNED; }
 "volatile"		{ count(); return token::VOLATILE; }
+"void"          { count(); return token::VOID; }
 "while"			{ count(); return token::WHILE; }
 
-{L}({L}|{D})*		{ count(); if (const auto type = Type::from_name(yytext)) { yylval->build(*type); return token::TYPE_NAME; } else { yylval->build(std::string{yytext}); return check_type(); } }
+{L}({L}|{D})*		{ count(); if (const auto type = Type::from_name(yytext)) { yylval->build(*type); return token::NONVOID_TYPE; } else { yylval->build(std::string{yytext}); return check_type(); } }
 
 0[xX]{H}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval->build<ast::Node>(ast::IntLiteral(*i)); return token::CONSTANT; } return token::LEX_ERROR; }
 0{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval->build<ast::Node>(ast::IntLiteral(*i)); return token::CONSTANT; } return token::LEX_ERROR; }
@@ -155,8 +156,8 @@ yy::parser::token_type check_type() {
 /*
 * pseudo code --- this is what it should check
 *
-*	if (yytext == type_name)
-*		return(TYPE_NAME);
+*	if (yytext == NONVOID_TYPE)
+*		return(NONVOID_TYPE);
 *
 *	return(IDENTIFIER);
 */

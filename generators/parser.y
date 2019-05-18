@@ -26,7 +26,7 @@ YY_DECL;
 %define parse.error verbose
 %parse-param {codegen::CodeGenInstance& codegen}
 
-%type <Type::ID> TYPE_NAME
+%type <Type::ID> NONVOID_TYPE type_or_void
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression 
 %type <ast::Node> CONSTANT STRING_LITERAL
 %type <std::string> IDENTIFIER
@@ -40,11 +40,12 @@ YY_DECL;
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
-%token XOR_ASSIGN OR_ASSIGN TYPE_NAME
+%token XOR_ASSIGN OR_ASSIGN NONVOID_TYPE
 %token LEX_ERROR
 
 %token TYPEDEF EXTERN STATIC AUTO REGISTER
 %token CHAR SHORT LONG SIGNED UNSIGNED CONST VOLATILE
+%token VOID
 %token STRUCT UNION ENUM ELLIPSIS
 
 %token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
@@ -116,14 +117,16 @@ term_expression: product_expression { $$ = std::move($1); }
 
 expression: term_expression { $$ = std::move($1); };
 
-function_proto: TYPE_NAME IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{$1, std::move($2), std::move($4)}; };
-maybe_param_list: param_list { $$ = std::move($1); } | { $$ = {}; };
+function_proto: type_or_void IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{$1, std::move($2), std::move($4)}; };
+maybe_param_list: param_list { $$ = std::move($1); } | { $$ = {}; } | VOID { $$ = {}; };
 param_list: param { $$ = {std::move($1)}; } 
     | param_list ',' param { $1.push_back(std::move($3)); $$ = std::move($1); };
-param: TYPE_NAME IDENTIFIER { $$ = {$1, std::move($2)}; }
-    | TYPE_NAME { $$ = {$1, std::nullopt}; };
+param: NONVOID_TYPE IDENTIFIER { $$ = {$1, std::move($2)}; }
+    | NONVOID_TYPE { $$ = {$1, std::nullopt}; };
 
 function_def: function_proto '{' expression[body] ';' '}' { $$ = ast::FunctionDef{std::move($1), ast::make_nodeptr(std::move($body))}; } ;
+
+type_or_void: NONVOID_TYPE { $$ = $1; } | VOID { $$ = Type::ID::Void; }
 
 %%
 
