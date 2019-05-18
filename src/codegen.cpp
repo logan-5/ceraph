@@ -64,6 +64,10 @@ Value* Visitor::operator()(const ast::BinaryExpr& binary) const {
     return nullptr;
 }
 
+llvm::Value* Visitor::operator()(const ast::FunctionProto& proto) const {
+    return nullptr;
+}
+
 Value* Visitor::make_floating_constant(Type::ID type,
                                        const llvm::APFloat& value) const {
     auto* const t = Type::get_type(type, instance.impl->context);

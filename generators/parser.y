@@ -21,7 +21,15 @@ YY_DECL;
 
 %language "c++"
 
-%define api.value.type {ast::Node}
+%define api.value.type variant
+%define parse.assert
+
+%type <ast::Node> expression term_expression product_expression unary_expression primary_expression 
+%type <ast::Node> function_proto
+%type <ast::Node> CONSTANT STRING_LITERAL
+%type <std::string> IDENTIFIER
+%type <std::vector<std::string>> maybe_param_list param_list
+%type <std::string> param
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
@@ -53,30 +61,37 @@ line: expression ';' {
     } else {
         llvm::errs() << "no code generated\n";
     }
-} | ';';
+} 
+| function_proto ';' { std::cout << "parsed a function prototype: " << $1 << '\n'; }
+| ';';
 
 primary_expression: 
-    IDENTIFIER
-	| CONSTANT
-	| STRING_LITERAL
-	| '(' expression ')' { $$ = std::move($2); }
+    CONSTANT { $$ = std::move($1); }
+	| STRING_LITERAL { $$ = std::move($1); }
+	| '(' expression ')' { $$ = $2; }
 	;
 
-unary_expression: primary_expression
+unary_expression: primary_expression { $$ = std::move($1); }
     | '-' primary_expression { $$ = make_unary<Operator::Unary::Minus>($2); };
 
-product_expression: unary_expression
+product_expression: unary_expression { $$ = std::move($1); }
     | product_expression '*' unary_expression { $$ = make_binary<Operator::Binary::Multiply>($1, $3); }
     | product_expression '/' unary_expression { $$ = make_binary<Operator::Binary::Divide>($1, $3); }
     | product_expression '%' unary_expression { $$ = make_binary<Operator::Binary::Modulo>($1, $3); }
     ;
 
-term_expression: product_expression
+term_expression: product_expression { $$ = std::move($1); }
     | term_expression '+' product_expression { $$ = make_binary<Operator::Binary::Plus>($1, $3); }
     | term_expression '-' product_expression { $$ = make_binary<Operator::Binary::Minus>($1, $3); }
     ;
 
-expression: term_expression;
+expression: term_expression { $$ = std::move($1); };
+
+function_proto: VOID IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{std::move($2), std::move($4)}; };
+maybe_param_list: param_list { $$ = std::move($1); } | { $$ = {}; };
+param_list: param { $$ = {std::move($1)}; } 
+    | param_list ',' param { $1.push_back(std::move($3)); $$ = std::move($1); };
+param: IDENTIFIER { $$ = std::move($1); };
 
 %%
 

@@ -60,13 +60,19 @@ struct BinaryExpr {
     NodePtr rhs;
 };
 
+struct FunctionProto {
+    std::string name;
+    std::vector<std::string> args;
+};
+
 struct Node
     : std::variant<IntLiteral,
                    FloatLiteral,
                    DoubleLiteral,
                    StringLiteral,
                    UnaryExpr,
-                   BinaryExpr> {
+                   BinaryExpr,
+                   FunctionProto> {
     using variant::variant;
 
     template <typename Visitor>

@@ -37,6 +37,16 @@ struct Dump {
         ostr << '\n';
         std::visit(next, *expr.rhs);
     }
+
+    void operator()(const FunctionProto& proto) const {
+        indent();
+        ostr << proto.name;
+        ostr << '(';
+        for (auto& arg : proto.args) {
+            ostr << arg << ", ";
+        }
+        ostr << ')';
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

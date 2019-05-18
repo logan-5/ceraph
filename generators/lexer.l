@@ -65,24 +65,24 @@ IS			(u|U|l|L)*
 "volatile"		{ count(); return token::VOLATILE; }
 "while"			{ count(); return token::WHILE; }
 
-{L}({L}|{D})*		{ count(); return check_type(); }
+{L}({L}|{D})*		{ count(); yylval->build(std::string{yytext}); return check_type(); }
 
-0[xX]{H}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { *yylval = ast::IntLiteral(*i); return token::CONSTANT; } return token::LEX_ERROR; }
-0{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { *yylval = ast::IntLiteral(*i); return token::CONSTANT; } return token::LEX_ERROR; }
-{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { *yylval = ast::IntLiteral(*i); return token::CONSTANT; } return token::LEX_ERROR; }
+0[xX]{H}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval->build<ast::Node>(ast::IntLiteral(*i)); return token::CONSTANT; } return token::LEX_ERROR; }
+0{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval->build<ast::Node>(ast::IntLiteral(*i)); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval->build<ast::Node>(ast::IntLiteral(*i)); return token::CONSTANT; } return token::LEX_ERROR; }
 L?'(\\.|[^\\'])+'	{ count(); return token::CONSTANT; }
 
-{D}+{E}		{ count(); if (auto f = parse_float<double>(yytext)) { *yylval = ast::DoubleLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
-{D}*"."{D}+({E})?	{ count(); if (auto f = parse_float<double>(yytext)) { *yylval = ast::DoubleLiteral(*f); return token::CONSTANT; } }
-{D}+"."{D}*({E})?	{ count(); if (auto f = parse_float<double>(yytext)) { *yylval = ast::DoubleLiteral(*f); return token::CONSTANT; } }
-{D}+{E}{FS}		    { count(); if (auto f = parse_float<float>(yytext)) { *yylval = ast::FloatLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
-{D}*"."{D}+({E})?{FS}	{ count(); if (auto f = parse_float<float>(yytext)) { *yylval = ast::FloatLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
-{D}+"."{D}*({E})?{FS}	{ count(); if (auto f = parse_float<float>(yytext)) { *yylval = ast::FloatLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
-{D}+{E}{LFS}		    { count(); if (auto f = parse_float</*long*/ double>(yytext)) { *yylval = ast::/*Long*/DoubleLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
-{D}*"."{D}+({E})?{LFS}	{ count(); if (auto f = parse_float</*long*/ double>(yytext)) { *yylval = ast::/*Long*/DoubleLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
-{D}+"."{D}*({E})?{LFS}	{ count(); if (auto f = parse_float</*long*/ double>(yytext)) { *yylval = ast::/*Long*/DoubleLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}+{E}		{ count(); if (auto f = parse_float<double>(yytext)) { yylval->build<ast::Node>(ast::DoubleLiteral(*f)); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}*"."{D}+({E})?	{ count(); if (auto f = parse_float<double>(yytext)) { yylval->build<ast::Node>(ast::DoubleLiteral(*f)); return token::CONSTANT; } }
+{D}+"."{D}*({E})?	{ count(); if (auto f = parse_float<double>(yytext)) { yylval->build<ast::Node>(ast::DoubleLiteral(*f)); return token::CONSTANT; } }
+{D}+{E}{FS}		    { count(); if (auto f = parse_float<float>(yytext)) { yylval->build<ast::Node>(ast::FloatLiteral(*f)); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}*"."{D}+({E})?{FS}	{ count(); if (auto f = parse_float<float>(yytext)) { yylval->build<ast::Node>(ast::FloatLiteral(*f)); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}+"."{D}*({E})?{FS}	{ count(); if (auto f = parse_float<float>(yytext)) { yylval->build<ast::Node>(ast::FloatLiteral(*f)); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}+{E}{LFS}		    { count(); if (auto f = parse_float</*long*/ double>(yytext)) { yylval->build<ast::Node>(ast::/*Long*/DoubleLiteral(*f)); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}*"."{D}+({E})?{LFS}	{ count(); if (auto f = parse_float</*long*/ double>(yytext)) { yylval->build<ast::Node>(ast::/*Long*/DoubleLiteral(*f)); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}+"."{D}*({E})?{LFS}	{ count(); if (auto f = parse_float</*long*/ double>(yytext)) { yylval->build<ast::Node>(ast::/*Long*/DoubleLiteral(*f)); return token::CONSTANT; } return token::LEX_ERROR; }
 
-L?\"(\\.|[^\\"])*\"	{ count(); *yylval = ast::StringLiteral(yytext); return token::STRING_LITERAL; }
+L?\"(\\.|[^\\"])*\"	{ count(); yylval->build<ast::Node>(ast::StringLiteral(yytext)); return token::STRING_LITERAL; }
 
 "..."			{ count(); return token::ELLIPSIS; }
 ">>="			{ count(); return token::RIGHT_ASSIGN; }
