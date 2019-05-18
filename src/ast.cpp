@@ -1,5 +1,7 @@
 #include "ast.hpp"
 
+#include "llvm/Support/raw_ostream.h"
+
 namespace ast {
 
 template <typename OStream>
@@ -41,7 +43,13 @@ Dump(unsigned, OStream&)->Dump<OStream>;
 
 std::ostream& operator<<(std::ostream& ostr, const ast::Node& node) {
     Dump dump{0, ostr};
-    std::visit(dump, node);
+    node.visit(dump);
+    return ostr;
+}
+
+llvm::raw_ostream& operator<<(llvm::raw_ostream& ostr, const ast::Node& node) {
+    Dump dump{0, ostr};
+    node.visit(dump);
     return ostr;
 }
 

@@ -1,7 +1,10 @@
 %{
 
 #include "ast.hpp"
+#include "codegen.hpp"
 #include "operator.hpp"
+
+#include "llvm/Support/raw_ostream.h"
 
 #include <iostream>
 
@@ -38,7 +41,16 @@ program: lines
 err: error | LEX_ERROR { std::cerr << "lex error\n"; };
 
 lines: | lines line;
-line: expression ';' { std::cout << $1 << '\n'; } | ';';
+line: expression ';' { 
+    llvm::errs() << $1 << '\n'; 
+    codegen::CodeGenInstance instance;
+    if (auto* const code = $1.visit(codegen::Visitor{instance})) {
+        code->print(llvm::errs());
+        instance.verify(llvm::errs());
+    } else {
+        llvm::errs() << "no code generated\n";
+    }
+} | ';';
 
 primary_expression: 
     IDENTIFIER

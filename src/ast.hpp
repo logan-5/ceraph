@@ -28,9 +28,22 @@ struct Literal {
     Rep rep;
 };
 using StringLiteral = Literal<std::string, Type::ID::StringLiteral>;
-using IntLiteral = Literal<int, Type::ID::Int>;
 using FloatLiteral = Literal<float, Type::ID::Float>;
 using DoubleLiteral = Literal<double, Type::ID::Double>;
+
+template <typename Rep, Type::ID Ty>
+struct IntegerLiteral : Literal<Rep, Ty> {
+    static_assert(Type::is_integer_v<Ty>);
+    using Literal<Rep, Ty>::Literal;
+    static constexpr unsigned getNumBits() noexcept {
+        return Type::num_bits<Ty>::value;
+    }
+    static constexpr bool isSigned() noexcept {
+        return Type::is_signed<Ty>::value;
+    }
+};
+
+using IntLiteral = IntegerLiteral<int, Type::ID::Int>;
 
 struct UnaryExpr {
     UnaryExpr(Operator::Unary in_op, NodePtr in_operand) noexcept
@@ -55,9 +68,24 @@ struct Node
                    UnaryExpr,
                    BinaryExpr> {
     using variant::variant;
+
+    template <typename Visitor>
+    decltype(auto) visit(Visitor&& v) const {
+        return std::visit(std::forward<Visitor>(v), *this);
+    }
+    template <typename Visitor>
+    decltype(auto) visit(Visitor&& v) {
+        return std::visit(std::forward<Visitor>(v), *this);
+    }
 };
 
 std::ostream& operator<<(std::ostream&, const ast::Node&);
+}  // namespace ast
+namespace llvm {
+class raw_ostream;
+}
+namespace ast {
+llvm::raw_ostream& operator<<(llvm::raw_ostream&, const ast::Node&);
 
 }  // namespace ast
 
