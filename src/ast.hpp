@@ -45,6 +45,10 @@ struct IntegerLiteral : Literal<Rep, Ty> {
 
 using IntLiteral = IntegerLiteral<int, Type::ID::Int>;
 
+struct Identifier {
+    std::string name;
+};
+
 struct UnaryExpr {
     UnaryExpr(Operator::Unary in_op, NodePtr in_operand) noexcept
         : op{in_op}, operand{std::move(in_operand)} {}
@@ -71,14 +75,21 @@ struct FunctionProto {
     std::vector<Arg> args;
 };
 
+struct FunctionDef {
+    FunctionProto proto;
+    NodePtr body;
+};
+
 struct Node
     : std::variant<IntLiteral,
                    FloatLiteral,
                    DoubleLiteral,
                    StringLiteral,
+                   Identifier,
                    UnaryExpr,
                    BinaryExpr,
-                   FunctionProto> {
+                   FunctionProto,
+                   FunctionDef> {
     using variant::variant;
 
     template <typename Visitor>

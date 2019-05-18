@@ -37,9 +37,12 @@ struct Visitor {
 
     llvm::Value* operator()(const ast::StringLiteral& str) const;
 
+    llvm::Value* operator()(const ast::Identifier& ident) const;
+
     llvm::Value* operator()(const ast::UnaryExpr& unary) const;
     llvm::Value* operator()(const ast::BinaryExpr& binary) const;
     llvm::Value* operator()(const ast::FunctionProto& proto) const;
+    llvm::Value* operator()(const ast::FunctionDef& func) const;
 
    private:
     llvm::Value* make_floating_constant(Type::ID type,

@@ -24,14 +24,17 @@ YY_DECL;
 %define api.value.type variant
 %define parse.assert
 %define parse.error verbose
+%parse-param {codegen::CodeGenInstance& codegen}
 
 %type <Type::ID> TYPE_NAME
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression 
-%type <ast::FunctionProto> function_proto
 %type <ast::Node> CONSTANT STRING_LITERAL
 %type <std::string> IDENTIFIER
+
+%type <ast::FunctionProto> function_proto
 %type <std::vector<ast::FunctionProto::Arg>> maybe_param_list param_list
 %type <ast::FunctionProto::Arg> param
+%type <ast::FunctionDef> function_def;
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
@@ -56,21 +59,28 @@ err: error | LEX_ERROR { std::cerr << "lex error\n"; };
 lines: | lines line;
 line: expression ';' { 
     llvm::errs() << $1 << '\n'; 
-    codegen::CodeGenInstance instance;
-    if (auto* const code = $1.visit(codegen::Visitor{instance})) {
+    if (auto* const code = $1.visit(codegen::Visitor{codegen})) {
         code->print(llvm::errs());
         llvm::errs() << '\n';
-        instance.verify(llvm::errs());
+        assert(!codegen.verify(llvm::errs()));
     } else {
         llvm::errs() << "no code generated\n";
     }
 } 
 | function_proto ';' { 
-    codegen::CodeGenInstance instance;
-    if (auto* const code = ast::Node{$1}.visit(codegen::Visitor{instance})) {
+    if (auto* const code = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
         code->print(llvm::errs());
         llvm::errs() << '\n';
-        instance.verify(llvm::errs());
+        assert(!codegen.verify(llvm::errs()));
+    } else {
+        llvm::errs() << "no code generated\n";
+    }
+}
+| function_def { 
+    if (auto* const code = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
+        code->print(llvm::errs());
+        llvm::errs() << '\n';
+        assert(!codegen.verify(llvm::errs()));
     } else {
         llvm::errs() << "no code generated\n";
     }
@@ -78,7 +88,8 @@ line: expression ';' {
 | ';';
 
 primary_expression: 
-    CONSTANT { $$ = std::move($1); }
+    IDENTIFIER { $$ = ast::Identifier{std::move($1)}; }
+    | CONSTANT { $$ = std::move($1); }
 	| STRING_LITERAL { $$ = std::move($1); }
 	| '(' expression ')' { $$ = std::move($2); }
 	;
@@ -105,6 +116,8 @@ param_list: param { $$ = {std::move($1)}; }
     | param_list ',' param { $1.push_back(std::move($3)); $$ = std::move($1); };
 param: TYPE_NAME IDENTIFIER { $$ = {$1, std::move($2)}; }
     | TYPE_NAME { $$ = {$1, std::nullopt}; };
+
+function_def: function_proto '{' expression[body] ';' '}' { $$ = ast::FunctionDef{std::move($1), ast::make_nodeptr(std::move($body))}; } ;
 
 %%
 

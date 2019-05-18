@@ -73,6 +73,10 @@ llvm::Type* get_type(ID theType, llvm::LLVMContext& context);
 llvm::FunctionType* get_type(const ast::FunctionProto& proto,
                              llvm::LLVMContext& context);
 
+inline bool is_void(ID t) {
+    return t == ID::Void;
+}
+
 }  // namespace Type
 
 #endif

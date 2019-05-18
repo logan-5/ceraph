@@ -1,4 +1,7 @@
+#include "ceraph_fwd.hpp"
+
 #include "ast.hpp"
+#include "codegen.hpp"
 #include "operator.hpp"
 #include "parser.hpp"
 
@@ -14,7 +17,8 @@ void yy::parser::error(const std::string& err) {
 
 int main(int argc, char** argv) {
     // std::ios::sync_with_stdio(false);
-    yy::parser parser;
+    codegen::CodeGenInstance instance;
+    yy::parser parser{instance};
     parser.parse();
     return 0;
 }

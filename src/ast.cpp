@@ -21,6 +21,11 @@ struct Dump {
         ostr << lit.getType() << ": " << lit.rep;
     }
 
+    void operator()(const Identifier& ident) const {
+        indent();
+        ostr << "[ident] " << ident.name;
+    }
+
     void operator()(const UnaryExpr& expr) const {
         indent();
         ostr << expr.op;
@@ -52,6 +57,13 @@ struct Dump {
                 ostr << *arg.name;
         }
         ostr << ')';
+    }
+
+    void operator()(const FunctionDef& func) const {
+        indent();
+        ostr << "[function]: " << func.proto;
+        Dump next{indentLevel + 1, ostr};
+        std::visit(next, *func.body);
     }
 };
 template <typename OStream>
