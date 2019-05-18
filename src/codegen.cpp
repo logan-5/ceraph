@@ -8,12 +8,20 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
 
+using llvm::Expected;
 using llvm::IRBuilder;
 using llvm::LLVMContext;
 using llvm::Module;
 using llvm::Value;
 
 namespace codegen {
+
+char CodeGenError::ID;
+auto err(llvm::StringRef desc) {
+    return llvm::make_error<CodeGenError>(desc);
+}
+
+using ReturnType = Visitor::ReturnType;
 
 struct CodeGenInstance::Impl {
     LLVMContext context;
@@ -28,12 +36,12 @@ bool CodeGenInstance::verify(llvm::raw_ostream& ostr) const {
     return llvm::verifyModule(*impl->module, &ostr);
 }
 
-Value* Visitor::operator()(const ast::StringLiteral& str) const {
+ReturnType Visitor::operator()(const ast::StringLiteral& str) const {
     return nullptr;
 }
 
 namespace {
-Value* negate(CodeGenInstance::Impl& instance, Value* operand) {
+ReturnType negate(CodeGenInstance::Impl& instance, Value* operand) {
     if (operand->getType()->isIntegerTy()) {
         return instance.builder.CreateNSWNeg(operand, "negatei");
     } else if (operand->getType()->isFloatingPointTy()) {
@@ -43,8 +51,11 @@ Value* negate(CodeGenInstance::Impl& instance, Value* operand) {
 }
 }  // namespace
 
-Value* Visitor::operator()(const ast::UnaryExpr& unary) const {
-    Value* const operand = unary.operand->visit(*this);
+ReturnType Visitor::operator()(const ast::UnaryExpr& unary) const {
+    auto operandOrErr = unary.operand->visit(*this);
+    if (auto err = operandOrErr.takeError())
+        return std::move(err);
+    const auto& operand = *operandOrErr;
     using namespace Operator;
     switch (unary.op) {
         case Unary::Minus:
@@ -53,11 +64,15 @@ Value* Visitor::operator()(const ast::UnaryExpr& unary) const {
     return nullptr;
 }
 
-Value* Visitor::operator()(const ast::BinaryExpr& binary) const {
-    Value* const lhs = binary.lhs->visit(*this);
-    Value* const rhs = binary.rhs->visit(*this);
-    assert(lhs);
-    assert(rhs);
+ReturnType Visitor::operator()(const ast::BinaryExpr& binary) const {
+    auto lhsOrErr = binary.lhs->visit(*this);
+    if (auto err = lhsOrErr.takeError())
+        return std::move(err);
+    const auto& lhs = *lhsOrErr;
+    auto rhsOrErr = binary.rhs->visit(*this);
+    if (auto err = rhsOrErr.takeError())
+        return std::move(err);
+    const auto& rhs = *rhsOrErr;
     assert(lhs->getType() ==
            rhs->getType());  // TODO implicit conversions in the front(er)end?
     llvm::Type* const type = lhs->getType();
@@ -108,17 +123,15 @@ Value* Visitor::operator()(const ast::BinaryExpr& binary) const {
     return nullptr;
 }
 
-llvm::Value* Visitor::operator()(const ast::Identifier& ident) const {
-    // TODO error handling
+ReturnType Visitor::operator()(const ast::Identifier& ident) const {
     if (auto it = instance.impl->namedValues.find(ident.name);
         it != instance.impl->namedValues.end()) {
         return it->getValue();
     }
-    assert(false && "nope");
-    return nullptr;
+    return err("identifier '" + ident.name + "' not found");
 }
 
-llvm::Value* Visitor::operator()(const ast::FunctionProto& proto) const {
+ReturnType Visitor::operator()(const ast::FunctionProto& proto) const {
     auto* const t = Type::get_type(proto, instance.impl->context);
 
     if (auto* const f = instance.impl->module->getFunction(proto.name)) {
@@ -143,10 +156,14 @@ llvm::Value* Visitor::operator()(const ast::FunctionProto& proto) const {
     return f;
 }
 
-llvm::Value* Visitor::operator()(const ast::FunctionDef& func) const {
-    auto* const f =
-          instance.impl->module->getFunction(func.proto.name)
-                ?: llvm::cast<llvm::Function>(this->operator()(func.proto));
+ReturnType Visitor::operator()(const ast::FunctionDef& func) const {
+    auto* f = instance.impl->module->getFunction(func.proto.name);
+    if (!f) {
+        auto fOrError = this->operator()(func.proto);
+        if (auto err = fOrError.takeError())
+            return std::move(err);
+        f = llvm::cast<llvm::Function>(*fOrError);
+    }
     assert(f);
     assert(f->empty() && "function redefined");  // TODO error handling
     assert(f->getFunctionType() ==
@@ -164,7 +181,10 @@ llvm::Value* Visitor::operator()(const ast::FunctionDef& func) const {
     for (auto& arg : f->args())
         instance.impl->namedValues[arg.getName()] = &arg;
 
-    auto* const body = func.body->visit(*this);
+    auto bodyOrErr = func.body->visit(*this);
+    if (auto err = bodyOrErr.takeError())
+        return std::move(err);
+    const auto& body = *bodyOrErr;
 
     if (!block->getTerminator() && Type::is_void(func.proto.returnType)) {
         builder.CreateRetVoid();

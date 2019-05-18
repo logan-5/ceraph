@@ -6,6 +6,7 @@
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/Error.h"
 
 namespace codegen {
 
@@ -18,16 +19,26 @@ struct CodeGenInstance {
     std::shared_ptr<Impl> impl;
 };
 
+struct CodeGenError : llvm::ErrorInfo<CodeGenError> {
+    static char ID;
+    std::string description;
+    CodeGenError(llvm::StringRef desc) : description{desc.str()} {}
+    void log(llvm::raw_ostream& os) const override { os << description; }
+    std::error_code convertToErrorCode() const override { return {}; }
+};
+
 struct Visitor {
+    using ReturnType = llvm::Expected<llvm::Value*>;
+
     CodeGenInstance& instance;
 
     template <typename Rep, Type::ID Ty>
-    std::enable_if_t<Type::is_floating_v<Ty>, llvm::Value*> operator()(
+    std::enable_if_t<Type::is_floating_v<Ty>, ReturnType> operator()(
           const ast::Literal<Rep, Ty>& literal) const {
         return make_floating_constant(Ty, llvm::APFloat{literal.rep});
     }
     template <typename Rep, Type::ID Ty>
-    llvm::Value* operator()(const ast::IntegerLiteral<Rep, Ty>& literal) const {
+    ReturnType operator()(const ast::IntegerLiteral<Rep, Ty>& literal) const {
         return make_integer_constant(
               Ty, llvm::APInt{literal.getNumBits(),
                               /* TODO I don't get this yet */
@@ -35,14 +46,14 @@ struct Visitor {
                               literal.isSigned()});
     }
 
-    llvm::Value* operator()(const ast::StringLiteral& str) const;
+    ReturnType operator()(const ast::StringLiteral& str) const;
 
-    llvm::Value* operator()(const ast::Identifier& ident) const;
+    ReturnType operator()(const ast::Identifier& ident) const;
 
-    llvm::Value* operator()(const ast::UnaryExpr& unary) const;
-    llvm::Value* operator()(const ast::BinaryExpr& binary) const;
-    llvm::Value* operator()(const ast::FunctionProto& proto) const;
-    llvm::Value* operator()(const ast::FunctionDef& func) const;
+    ReturnType operator()(const ast::UnaryExpr& unary) const;
+    ReturnType operator()(const ast::BinaryExpr& binary) const;
+    ReturnType operator()(const ast::FunctionProto& proto) const;
+    ReturnType operator()(const ast::FunctionDef& func) const;
 
    private:
     llvm::Value* make_floating_constant(Type::ID type,

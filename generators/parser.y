@@ -59,29 +59,35 @@ err: error | LEX_ERROR { std::cerr << "lex error\n"; };
 lines: | lines line;
 line: expression ';' { 
     llvm::errs() << $1 << '\n'; 
-    if (auto* const code = $1.visit(codegen::Visitor{codegen})) {
+    if (auto codeE = $1.visit(codegen::Visitor{codegen})) {
+        const auto& code = *codeE;
         code->print(llvm::errs());
         llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
+        llvm::errs() << codeE.takeError() << '\n';
         llvm::errs() << "no code generated\n";
     }
 } 
 | function_proto ';' { 
-    if (auto* const code = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
+    if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
+        const auto& code = *codeE;
         code->print(llvm::errs());
         llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
+        llvm::errs() << codeE.takeError() << '\n';
         llvm::errs() << "no code generated\n";
     }
 }
 | function_def { 
-    if (auto* const code = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
+    if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
+        const auto& code = *codeE;
         code->print(llvm::errs());
         llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
+        llvm::errs() << codeE.takeError() << '\n';
         llvm::errs() << "no code generated\n";
     }
 }
