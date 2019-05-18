@@ -1,4 +1,5 @@
 %{
+#include "ceraph_fwd.hpp"
 
 #include "ast.hpp"
 #include "operator.hpp"
@@ -7,7 +8,9 @@
 #include <iostream>
 #include <optional>
 
-yytokentype check_type();
+using token = yy::parser::token;
+
+yy::parser::token_type check_type();
 void comment();
 void count();
 
@@ -29,80 +32,80 @@ IS			(u|U|l|L)*
 %%
 "/*"			{ comment(); }
 
-"auto"			{ count(); return AUTO; }
-"break"			{ count(); return BREAK; }
-"case"			{ count(); return CASE; }
-"char"			{ count(); return CHAR; }
-"const"			{ count(); return CONST; }
-"continue"		{ count(); return CONTINUE; }
-"default"		{ count(); return DEFAULT; }
-"do"			{ count(); return DO; }
-"double"		{ count(); return DOUBLE; }
-"else"			{ count(); return ELSE; }
-"enum"			{ count(); return ENUM; }
-"extern"		{ count(); return EXTERN; }
-"float"			{ count(); return FLOAT; }
-"for"			{ count(); return FOR; }
-"goto"			{ count(); return GOTO; }
-"if"			{ count(); return IF; }
-"int"			{ count(); return INT; }
-"long"			{ count(); return LONG; }
-"register"		{ count(); return REGISTER; }
-"return"		{ count(); return RETURN; }
-"short"			{ count(); return SHORT; }
-"signed"		{ count(); return SIGNED; }
-"sizeof"		{ count(); return SIZEOF; }
-"static"		{ count(); return STATIC; }
-"struct"		{ count(); return STRUCT; }
-"switch"		{ count(); return SWITCH; }
-"typedef"		{ count(); return TYPEDEF; }
-"union"			{ count(); return UNION; }
-"unsigned"		{ count(); return UNSIGNED; }
-"void"			{ count(); return VOID; }
-"volatile"		{ count(); return VOLATILE; }
-"while"			{ count(); return WHILE; }
+"auto"			{ count(); return token::AUTO; }
+"break"			{ count(); return token::BREAK; }
+"case"			{ count(); return token::CASE; }
+"char"			{ count(); return token::CHAR; }
+"const"			{ count(); return token::CONST; }
+"continue"		{ count(); return token::CONTINUE; }
+"default"		{ count(); return token::DEFAULT; }
+"do"			{ count(); return token::DO; }
+"double"		{ count(); return token::DOUBLE; }
+"else"			{ count(); return token::ELSE; }
+"enum"			{ count(); return token::ENUM; }
+"extern"		{ count(); return token::EXTERN; }
+"float"			{ count(); return token::FLOAT; }
+"for"			{ count(); return token::FOR; }
+"goto"			{ count(); return token::GOTO; }
+"if"			{ count(); return token::IF; }
+"int"			{ count(); return token::INT; }
+"long"			{ count(); return token::LONG; }
+"register"		{ count(); return token::REGISTER; }
+"return"		{ count(); return token::RETURN; }
+"short"			{ count(); return token::SHORT; }
+"signed"		{ count(); return token::SIGNED; }
+"sizeof"		{ count(); return token::SIZEOF; }
+"static"		{ count(); return token::STATIC; }
+"struct"		{ count(); return token::STRUCT; }
+"switch"		{ count(); return token::SWITCH; }
+"typedef"		{ count(); return token::TYPEDEF; }
+"union"			{ count(); return token::UNION; }
+"unsigned"		{ count(); return token::UNSIGNED; }
+"void"			{ count(); return token::VOID; }
+"volatile"		{ count(); return token::VOLATILE; }
+"while"			{ count(); return token::WHILE; }
 
 {L}({L}|{D})*		{ count(); return check_type(); }
 
-0[xX]{H}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval = ast::IntLiteral(*i); return CONSTANT; } return LEX_ERROR; }
-0{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval = ast::IntLiteral(*i); return CONSTANT; } return LEX_ERROR; }
-{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval = ast::IntLiteral(*i); return CONSTANT; } return LEX_ERROR; }
-L?'(\\.|[^\\'])+'	{ count(); return CONSTANT; }
+0[xX]{H}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { *yylval = ast::IntLiteral(*i); return token::CONSTANT; } return token::LEX_ERROR; }
+0{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { *yylval = ast::IntLiteral(*i); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { *yylval = ast::IntLiteral(*i); return token::CONSTANT; } return token::LEX_ERROR; }
+L?'(\\.|[^\\'])+'	{ count(); return token::CONSTANT; }
 
-{D}+{E}		{ count(); if (auto f = parse_float<double>(yytext)) { yylval = ast::DoubleLiteral(*f); return CONSTANT; } return LEX_ERROR; }
-{D}*"."{D}+({E})?	{ count(); if (auto f = parse_float<double>(yytext)) { yylval = ast::DoubleLiteral(*f); return CONSTANT; } }
-{D}+"."{D}*({E})?	{ count(); if (auto f = parse_float<double>(yytext)) { yylval = ast::DoubleLiteral(*f); return CONSTANT; } }
-{D}+{E}{FS}		    { count(); if (auto f = parse_float<float>(yytext)) { yylval = ast::FloatLiteral(*f); return CONSTANT; } return LEX_ERROR; }
-{D}*"."{D}+({E})?{FS}	{ count(); if (auto f = parse_float<float>(yytext)) { yylval = ast::FloatLiteral(*f); return CONSTANT; } return LEX_ERROR; }
-{D}+"."{D}*({E})?{FS}	{ count(); if (auto f = parse_float<float>(yytext)) { yylval = ast::FloatLiteral(*f); return CONSTANT; } return LEX_ERROR; }
-{D}+{E}{LFS}		    { count(); if (auto f = parse_float</*long*/ double>(yytext)) { yylval = ast::/*Long*/DoubleLiteral(*f); return CONSTANT; } return LEX_ERROR; }
-{D}*"."{D}+({E})?{LFS}	{ count(); if (auto f = parse_float</*long*/ double>(yytext)) { yylval = ast::/*Long*/DoubleLiteral(*f); return CONSTANT; } return LEX_ERROR; }
-{D}+"."{D}*({E})?{LFS}	{ count(); if (auto f = parse_float</*long*/ double>(yytext)) { yylval = ast::/*Long*/DoubleLiteral(*f); return CONSTANT; } return LEX_ERROR; }
+{D}+{E}		{ count(); if (auto f = parse_float<double>(yytext)) { *yylval = ast::DoubleLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}*"."{D}+({E})?	{ count(); if (auto f = parse_float<double>(yytext)) { *yylval = ast::DoubleLiteral(*f); return token::CONSTANT; } }
+{D}+"."{D}*({E})?	{ count(); if (auto f = parse_float<double>(yytext)) { *yylval = ast::DoubleLiteral(*f); return token::CONSTANT; } }
+{D}+{E}{FS}		    { count(); if (auto f = parse_float<float>(yytext)) { *yylval = ast::FloatLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}*"."{D}+({E})?{FS}	{ count(); if (auto f = parse_float<float>(yytext)) { *yylval = ast::FloatLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}+"."{D}*({E})?{FS}	{ count(); if (auto f = parse_float<float>(yytext)) { *yylval = ast::FloatLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}+{E}{LFS}		    { count(); if (auto f = parse_float</*long*/ double>(yytext)) { *yylval = ast::/*Long*/DoubleLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}*"."{D}+({E})?{LFS}	{ count(); if (auto f = parse_float</*long*/ double>(yytext)) { *yylval = ast::/*Long*/DoubleLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
+{D}+"."{D}*({E})?{LFS}	{ count(); if (auto f = parse_float</*long*/ double>(yytext)) { *yylval = ast::/*Long*/DoubleLiteral(*f); return token::CONSTANT; } return token::LEX_ERROR; }
 
-L?\"(\\.|[^\\"])*\"	{ count(); yylval = ast::StringLiteral(yytext); return STRING_LITERAL; }
+L?\"(\\.|[^\\"])*\"	{ count(); *yylval = ast::StringLiteral(yytext); return token::STRING_LITERAL; }
 
-"..."			{ count(); return ELLIPSIS; }
-">>="			{ count(); return RIGHT_ASSIGN; }
-"<<="			{ count(); return LEFT_ASSIGN; }
-"+="			{ count(); return ADD_ASSIGN; }
-"-="			{ count(); return SUB_ASSIGN; }
-"*="			{ count(); return MUL_ASSIGN; }
-"/="			{ count(); return DIV_ASSIGN; }
-"%="			{ count(); return MOD_ASSIGN; }
-"&="			{ count(); return AND_ASSIGN; }
-"^="			{ count(); return XOR_ASSIGN; }
-"|="			{ count(); return OR_ASSIGN; }
-">>"			{ count(); return RIGHT_OP; }
-"<<"			{ count(); return LEFT_OP; }
-"++"			{ count(); return INC_OP; }
-"--"			{ count(); return DEC_OP; }
-"->"			{ count(); return PTR_OP; }
-"&&"			{ count(); return AND_OP; }
-"||"			{ count(); return OR_OP; }
-"<="			{ count(); return LE_OP; }
-">="			{ count(); return GE_OP; }
-"=="			{ count(); return EQ_OP; }
-"!="			{ count(); return NE_OP; }
+"..."			{ count(); return token::ELLIPSIS; }
+">>="			{ count(); return token::RIGHT_ASSIGN; }
+"<<="			{ count(); return token::LEFT_ASSIGN; }
+"+="			{ count(); return token::ADD_ASSIGN; }
+"-="			{ count(); return token::SUB_ASSIGN; }
+"*="			{ count(); return token::MUL_ASSIGN; }
+"/="			{ count(); return token::DIV_ASSIGN; }
+"%="			{ count(); return token::MOD_ASSIGN; }
+"&="			{ count(); return token::AND_ASSIGN; }
+"^="			{ count(); return token::XOR_ASSIGN; }
+"|="			{ count(); return token::OR_ASSIGN; }
+">>"			{ count(); return token::RIGHT_OP; }
+"<<"			{ count(); return token::LEFT_OP; }
+"++"			{ count(); return token::INC_OP; }
+"--"			{ count(); return token::DEC_OP; }
+"->"			{ count(); return token::PTR_OP; }
+"&&"			{ count(); return token::AND_OP; }
+"||"			{ count(); return token::OR_OP; }
+"<="			{ count(); return token::LE_OP; }
+">="			{ count(); return token::GE_OP; }
+"=="			{ count(); return token::EQ_OP; }
+"!="			{ count(); return token::NE_OP; }
 ";"			{ count(); return ';'; }
 ("{"|"<%")		{ count(); return '{'; }
 ("}"|"%>")		{ count(); return '}'; }
@@ -152,7 +155,7 @@ loop:
 
 void count() {}
 
-yytokentype check_type() {
+yy::parser::token_type check_type() {
 /*
 * pseudo code --- this is what it should check
 *
@@ -166,7 +169,7 @@ yytokentype check_type() {
 *	it actually will only return IDENTIFIER
 */
 
-	return IDENTIFIER;
+	return token::IDENTIFIER;
 }
 
 template <typename Int>

@@ -7,13 +7,14 @@
 extern "C" int yywrap() {
     return 1;
 }
-int yyerror(const char* err) {
+
+void yy::parser::error(const std::string& err) {
     std::cerr << err;
-    return 1;
 }
 
 int main(int argc, char** argv) {
     // std::ios::sync_with_stdio(false);
-    yyparse();
+    yy::parser parser;
+    parser.parse();
     return 0;
 }

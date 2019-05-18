@@ -1,22 +1,25 @@
 %{
+#include "ceraph_fwd.hpp"
 
 #include "ast.hpp"
 #include "codegen.hpp"
 #include "operator.hpp"
+#include "parser.hpp"
 
 #include "llvm/Support/raw_ostream.h"
 
 #include <iostream>
-
-int yylex();
-int yyerror(const char*);
 
 template <Operator::Unary Op, typename Operand>
 ast::UnaryExpr make_unary(Operand&& operand);
 template <Operator::Binary Op, typename Lhs, typename Rhs>
 ast::BinaryExpr make_binary(Lhs&& lhs, Rhs&& rhs);
 
+YY_DECL;
+
 %}
+
+%language "c++"
 
 %define api.value.type {ast::Node}
 
