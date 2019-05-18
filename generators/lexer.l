@@ -40,15 +40,12 @@ IS			(u|U|l|L)*
 "continue"		{ count(); return token::CONTINUE; }
 "default"		{ count(); return token::DEFAULT; }
 "do"			{ count(); return token::DO; }
-"double"		{ count(); return token::DOUBLE; }
 "else"			{ count(); return token::ELSE; }
 "enum"			{ count(); return token::ENUM; }
 "extern"		{ count(); return token::EXTERN; }
-"float"			{ count(); return token::FLOAT; }
 "for"			{ count(); return token::FOR; }
 "goto"			{ count(); return token::GOTO; }
 "if"			{ count(); return token::IF; }
-"int"			{ count(); return token::INT; }
 "long"			{ count(); return token::LONG; }
 "register"		{ count(); return token::REGISTER; }
 "return"		{ count(); return token::RETURN; }
@@ -61,11 +58,10 @@ IS			(u|U|l|L)*
 "typedef"		{ count(); return token::TYPEDEF; }
 "union"			{ count(); return token::UNION; }
 "unsigned"		{ count(); return token::UNSIGNED; }
-"void"			{ count(); return token::VOID; }
 "volatile"		{ count(); return token::VOLATILE; }
 "while"			{ count(); return token::WHILE; }
 
-{L}({L}|{D})*		{ count(); yylval->build(std::string{yytext}); return check_type(); }
+{L}({L}|{D})*		{ count(); if (const auto type = Type::from_name(yytext)) { yylval->build(*type); return token::TYPE_NAME; } else { yylval->build(std::string{yytext}); return check_type(); } }
 
 0[xX]{H}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval->build<ast::Node>(ast::IntLiteral(*i)); return token::CONSTANT; } return token::LEX_ERROR; }
 0{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval->build<ast::Node>(ast::IntLiteral(*i)); return token::CONSTANT; } return token::LEX_ERROR; }

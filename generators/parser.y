@@ -23,13 +23,15 @@ YY_DECL;
 
 %define api.value.type variant
 %define parse.assert
+%define parse.error verbose
 
+%type <Type::ID> TYPE_NAME
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression 
-%type <ast::Node> function_proto
+%type <ast::FunctionProto> function_proto
 %type <ast::Node> CONSTANT STRING_LITERAL
 %type <std::string> IDENTIFIER
-%type <std::vector<std::string>> maybe_param_list param_list
-%type <std::string> param
+%type <std::vector<ast::FunctionProto::Arg>> maybe_param_list param_list
+%type <ast::FunctionProto::Arg> param
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
@@ -39,7 +41,7 @@ YY_DECL;
 %token LEX_ERROR
 
 %token TYPEDEF EXTERN STATIC AUTO REGISTER
-%token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
+%token CHAR SHORT LONG SIGNED UNSIGNED CONST VOLATILE
 %token STRUCT UNION ENUM ELLIPSIS
 
 %token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
@@ -57,18 +59,28 @@ line: expression ';' {
     codegen::CodeGenInstance instance;
     if (auto* const code = $1.visit(codegen::Visitor{instance})) {
         code->print(llvm::errs());
+        llvm::errs() << '\n';
         instance.verify(llvm::errs());
     } else {
         llvm::errs() << "no code generated\n";
     }
 } 
-| function_proto ';' { std::cout << "parsed a function prototype: " << $1 << '\n'; }
+| function_proto ';' { 
+    codegen::CodeGenInstance instance;
+    if (auto* const code = ast::Node{$1}.visit(codegen::Visitor{instance})) {
+        code->print(llvm::errs());
+        llvm::errs() << '\n';
+        instance.verify(llvm::errs());
+    } else {
+        llvm::errs() << "no code generated\n";
+    }
+}
 | ';';
 
 primary_expression: 
     CONSTANT { $$ = std::move($1); }
 	| STRING_LITERAL { $$ = std::move($1); }
-	| '(' expression ')' { $$ = $2; }
+	| '(' expression ')' { $$ = std::move($2); }
 	;
 
 unary_expression: primary_expression { $$ = std::move($1); }
@@ -87,11 +99,12 @@ term_expression: product_expression { $$ = std::move($1); }
 
 expression: term_expression { $$ = std::move($1); };
 
-function_proto: VOID IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{std::move($2), std::move($4)}; };
+function_proto: TYPE_NAME IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{$1, std::move($2), std::move($4)}; };
 maybe_param_list: param_list { $$ = std::move($1); } | { $$ = {}; };
 param_list: param { $$ = {std::move($1)}; } 
     | param_list ',' param { $1.push_back(std::move($3)); $$ = std::move($1); };
-param: IDENTIFIER { $$ = std::move($1); };
+param: TYPE_NAME IDENTIFIER { $$ = {$1, std::move($2)}; }
+    | TYPE_NAME { $$ = {$1, std::nullopt}; };
 
 %%
 

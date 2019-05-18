@@ -1,6 +1,8 @@
 #include "codegen.hpp"
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -65,7 +67,19 @@ Value* Visitor::operator()(const ast::BinaryExpr& binary) const {
 }
 
 llvm::Value* Visitor::operator()(const ast::FunctionProto& proto) const {
-    return nullptr;
+    auto* const t = Type::get_type(proto, instance.impl->context);
+    auto* const f =
+          llvm::Function::Create(t, llvm::Function::ExternalLinkage, proto.name,
+                                 instance.impl->module.get());
+
+    assert(f->arg_size() == proto.args.size());
+    std::size_t idx = 0;
+    for (auto& arg : f->args()) {
+        if (auto& name = proto.args[idx].name)
+            arg.setName(*name);
+    }
+
+    return f;
 }
 
 Value* Visitor::make_floating_constant(Type::ID type,

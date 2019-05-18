@@ -61,8 +61,14 @@ struct BinaryExpr {
 };
 
 struct FunctionProto {
+    Type::ID returnType;
     std::string name;
-    std::vector<std::string> args;
+
+    struct Arg {
+        Type::ID type;
+        std::optional<std::string> name;
+    };
+    std::vector<Arg> args;
 };
 
 struct Node

@@ -1,10 +1,18 @@
 #ifndef CERAPH_TYPE_HPP
 #define CERAPH_TYPE_HPP
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Type.h"
+
+#include <optional>
 
 namespace llvm {
 class LLVMContext;
+}
+
+namespace ast {
+class FunctionProto;
 }
 
 namespace Type {
@@ -14,7 +22,10 @@ enum class ID {
     Float,
     Double,
     StringLiteral,
+    Void,
 };
+
+std::optional<ID> from_name(llvm::StringRef name);
 
 template <typename OStream>
 OStream& operator<<(OStream& ostr, ID ty) {
@@ -30,6 +41,9 @@ OStream& operator<<(OStream& ostr, ID ty) {
             break;
         case ID::StringLiteral:
             ostr << "string";
+            break;
+        case ID::Void:
+            ostr << "void";
             break;
     }
     return ostr;
@@ -55,6 +69,9 @@ template <>
 struct is_signed<ID::Int> : std::true_type {};
 
 llvm::Type* get_type(ID theType, llvm::LLVMContext& context);
+
+llvm::FunctionType* get_type(const ast::FunctionProto& proto,
+                             llvm::LLVMContext& context);
 
 }  // namespace Type
 

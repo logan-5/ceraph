@@ -4,7 +4,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 
-
 # workaround needed for bison parse.assert
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DYY_NULLPTR=nullptr")
 
@@ -39,6 +38,8 @@ set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/operator.hpp)
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/operator.cpp)
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/type.hpp)
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/type.cpp)
+set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/util.hpp)
+set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/util.cpp)
 
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")

@@ -40,10 +40,16 @@ struct Dump {
 
     void operator()(const FunctionProto& proto) const {
         indent();
+        ostr << '[' << proto.returnType << "] ";
         ostr << proto.name;
         ostr << '(';
+        bool first = true;
         for (auto& arg : proto.args) {
-            ostr << arg << ", ";
+            if (!std::exchange(first, false))
+                ostr << ", ";
+            ostr << '[' << arg.type << "] ";
+            if (arg.name)
+                ostr << *arg.name;
         }
         ostr << ')';
     }
