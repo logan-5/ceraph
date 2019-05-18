@@ -66,7 +66,7 @@ line: expression ';' {
         llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
-        llvm::errs() << codeE.takeError() << '\n';
+        llvm::errs() << "error: " << codeE.takeError() << '\n';
         llvm::errs() << "no code generated\n";
     }
 } 
@@ -77,7 +77,7 @@ line: expression ';' {
         llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
-        llvm::errs() << codeE.takeError() << '\n';
+        llvm::errs() << "error: " << codeE.takeError() << '\n';
         llvm::errs() << "no code generated\n";
     }
 }
@@ -88,7 +88,7 @@ line: expression ';' {
         llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
-        llvm::errs() << codeE.takeError() << '\n';
+        llvm::errs() << "error: " << codeE.takeError() << '\n';
         llvm::errs() << "no code generated\n";
     }
 }

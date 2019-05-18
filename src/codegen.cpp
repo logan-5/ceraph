@@ -134,12 +134,10 @@ ReturnType Visitor::operator()(const ast::Identifier& ident) const {
 ReturnType Visitor::operator()(const ast::FunctionProto& proto) const {
     auto* const t = Type::get_type(proto, instance.impl->context);
 
-    if (auto* const f = instance.impl->module->getFunction(proto.name)) {
-        assert(
-              f->getFunctionType() == t &&
-              "prototype redeclared with a different signature");  // TODO error
-                                                                   // handling
-        return f;
+    if (auto* const f = instance.impl->module->getFunction(proto.name);
+        f && (f->getFunctionType() != t)) {
+        return err('\'' + proto.name +
+                   "' prototype redeclared with a different signature");
     }
 
     auto* const f =
@@ -165,11 +163,15 @@ ReturnType Visitor::operator()(const ast::FunctionDef& func) const {
         f = llvm::cast<llvm::Function>(*fOrError);
     }
     assert(f);
-    assert(f->empty() && "function redefined");  // TODO error handling
-    assert(f->getFunctionType() ==
-                 Type::get_type(func.proto, instance.impl->context) &&
-           "function redefined with a different signature");  // TODO error
-                                                              // handling
+    if (!f->empty()) {
+        return err("function '" + func.proto.name + "' redefined");
+    }
+    if (f->getFunctionType() !=
+        Type::get_type(func.proto, instance.impl->context)) {
+        return err("function '" + func.proto.name +
+                   "' defined with a different signature than it was first "
+                   "declared with");
+    }
 
     auto& builder = instance.impl->builder;
 
