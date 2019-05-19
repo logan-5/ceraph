@@ -19,16 +19,19 @@ struct CodeGenInstance {
     std::shared_ptr<Impl> impl;
 };
 
-struct CodeGenError : llvm::ErrorInfo<CodeGenError> {
+struct CodeGenError : public llvm::ErrorInfo<CodeGenError> {
     static char ID;
     std::string description;
-    CodeGenError(llvm::StringRef desc) : description{desc.str()} {}
+
+    CodeGenError(const llvm::Twine& desc) : description{desc.str()} {}
     void log(llvm::raw_ostream& os) const override { os << description; }
     std::error_code convertToErrorCode() const override { return {}; }
 };
 
 struct Visitor {
-    using ReturnType = llvm::Expected<llvm::Value*>;
+    using ReturnType = llvm::Expected<
+          llvm::Value*>;  // TODO remove awkward nullptr state:
+                          // llvm::Expected<std::reference_wrapper<llvm::Value>>;
 
     CodeGenInstance& instance;
 
@@ -54,6 +57,7 @@ struct Visitor {
     ReturnType operator()(const ast::BinaryExpr& binary) const;
     ReturnType operator()(const ast::FunctionProto& proto) const;
     ReturnType operator()(const ast::FunctionDef& func) const;
+    ReturnType operator()(const ast::FunctionCall& call) const;
 
    private:
     llvm::Value* make_floating_constant(Type::ID type,

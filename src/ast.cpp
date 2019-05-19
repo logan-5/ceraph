@@ -65,6 +65,17 @@ struct Dump {
         Dump next{indentLevel + 1, ostr};
         std::visit(next, *func.body);
     }
+
+    void operator()(const FunctionCall& call) const {
+        indent();
+        ostr << "[function call]: " << call.name;
+        if (!call.args.empty()) {
+            Dump next{indentLevel + 1, ostr};
+            ostr << ", with args:\n";
+            for (auto& arg : call.args)
+                std::visit(next, *arg);
+        }
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

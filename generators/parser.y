@@ -27,14 +27,18 @@ YY_DECL;
 %parse-param {codegen::CodeGenInstance& codegen}
 
 %type <Type::ID> NONVOID_TYPE type_or_void
-%type <ast::Node> expression term_expression product_expression unary_expression primary_expression 
+%type <ast::Node> expression term_expression product_expression unary_expression primary_expression postfix_expression
 %type <ast::Node> CONSTANT STRING_LITERAL
 %type <std::string> IDENTIFIER
 
 %type <ast::FunctionProto> function_proto
-%type <std::vector<ast::FunctionProto::Arg>> maybe_param_list param_list
 %type <ast::FunctionProto::Arg> param
+%type <ast::FunctionProto::ArgList> maybe_param_list param_list
 %type <ast::FunctionDef> function_def;
+
+%type <ast::FunctionCall::Arg> call_arg;
+%type <ast::FunctionCall::ArgList> maybe_call_arg_list call_arg_list;
+%type <ast::FunctionCall> function_call_expression;
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
@@ -101,8 +105,13 @@ primary_expression:
 	| '(' expression ')' { $$ = std::move($2); }
 	;
 
-unary_expression: primary_expression { $$ = std::move($1); }
-    | '-' primary_expression { $$ = make_unary<Operator::Unary::Minus>($2); };
+postfix_expression: primary_expression { $$ = std::move($1); }
+    | function_call_expression { $$ = std::move($1); }
+    ;
+
+unary_expression: postfix_expression { $$ = std::move($1); }
+    | '-' postfix_expression { $$ = make_unary<Operator::Unary::Minus>($2); }
+    ;
 
 product_expression: unary_expression { $$ = std::move($1); }
     | product_expression '*' unary_expression { $$ = make_binary<Operator::Binary::Multiply>($1, $3); }
@@ -115,19 +124,30 @@ term_expression: product_expression { $$ = std::move($1); }
     | term_expression '-' product_expression { $$ = make_binary<Operator::Binary::Minus>($1, $3); }
     ;
 
-expression: term_expression { $$ = std::move($1); };
+expression: term_expression { $$ = std::move($1); }
+    ;
 
 function_proto: type_or_void IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{$1, std::move($2), std::move($4)}; };
 maybe_param_list: param_list { $$ = std::move($1); } | empty_param_list { $$ = {}; };
 empty_param_list: | VOID;
 param_list: param { $$ = {std::move($1)}; } 
-    | param_list ',' param { $1.push_back(std::move($3)); $$ = std::move($1); };
+    | param_list ',' param { $1.push_back(std::move($3)); $$ = std::move($1); }
+    ;
 param: NONVOID_TYPE IDENTIFIER { $$ = {$1, std::move($2)}; }
-    | NONVOID_TYPE { $$ = {$1, std::nullopt}; };
+    | NONVOID_TYPE { $$ = {$1, std::nullopt}; }
+    ;
 
-function_def: function_proto '{' expression[body] ';' '}' { $$ = ast::FunctionDef{std::move($1), ast::make_nodeptr(std::move($body))}; } ;
+function_def: function_proto '{' expression[body] ';' '}' { $$ = ast::FunctionDef{std::move($1), ast::make_nodeptr(std::move($body))}; };
 
-type_or_void: NONVOID_TYPE { $$ = $1; } | VOID { $$ = Type::ID::Void; }
+function_call_expression: IDENTIFIER '(' maybe_call_arg_list ')' { $$ = ast::FunctionCall{std::move($1), std::move($3)}; };
+maybe_call_arg_list: call_arg_list { $$ = std::move($1); } | empty_call_arg_list { $$ = {}; };
+empty_call_arg_list: | VOID;
+call_arg_list: call_arg { $$ = {std::move($1)}; } 
+    | call_arg_list ',' call_arg { $1.push_back(std::move($3)); $$ = std::move($1); }
+    ;
+call_arg: expression { $$ = ast::make_nodeptr(std::move($1)); };
+
+type_or_void: NONVOID_TYPE { $$ = $1; } | VOID { $$ = Type::ID::Void; };
 
 %%
 

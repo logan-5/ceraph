@@ -44,7 +44,7 @@ llvm::FunctionType* get_type(const ast::FunctionProto& proto,
     auto* const returnType = get_type(proto.returnType, theContext);
     assert(llvm::FunctionType::isValidReturnType(returnType));
 
-    const std::vector<llvm::Type*> argTypes =
+    const auto argTypes =
           util::transform(proto.args, [&](const ast::FunctionProto::Arg& arg) {
               auto* const theType = get_type(arg.type, theContext);
               assert(llvm::FunctionType::isValidArgumentType(theType));

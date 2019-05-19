@@ -17,7 +17,7 @@ using llvm::Value;
 namespace codegen {
 
 char CodeGenError::ID;
-auto err(llvm::StringRef desc) {
+auto err(const llvm::Twine& desc) {
     return llvm::make_error<CodeGenError>(desc);
 }
 
@@ -196,6 +196,35 @@ ReturnType Visitor::operator()(const ast::FunctionDef& func) const {
     }
 
     return f;
+}
+
+ReturnType Visitor::operator()(const ast::FunctionCall& call) const {
+    llvm::Function* f = instance.impl->module->getFunction(call.name);
+    if (!f) {
+        return err("unknown function '" + call.name + "'");
+    }
+    if (f->arg_size() != call.args.size()) {
+        return err("argument count mismatch, expected " +
+                   llvm::Twine(f->arg_size()) + ", have " +
+                   llvm::Twine(call.args.size()));
+    }
+    llvm::SmallVector<Value*, 8> args;
+    for (std::size_t i = 0; i < call.args.size(); ++i) {
+        auto& argExpr = call.args[i];
+        auto argOrErr = argExpr->visit(*this);
+        if (auto err = argOrErr.takeError()) {
+            return std::move(err);
+        }
+        Value* const& arg = *argOrErr;
+        llvm::Argument& destArg = *std::next(f->arg_begin(), i);
+        if (destArg.getType() != arg->getType()) {
+            return err("type mismatch for argument " + llvm::Twine(i + 1));
+        }
+        args.push_back(arg);
+    }
+
+    return instance.impl->builder.CreateCall(f->getFunctionType(), f, args,
+                                             "call" + call.name);
 }
 
 Value* Visitor::make_floating_constant(Type::ID type,

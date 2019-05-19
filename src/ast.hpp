@@ -72,12 +72,20 @@ struct FunctionProto {
         Type::ID type;
         std::optional<std::string> name;
     };
-    std::vector<Arg> args;
+    using ArgList = std::vector<Arg>;
+    ArgList args;
 };
 
 struct FunctionDef {
     FunctionProto proto;
     NodePtr body;
+};
+
+struct FunctionCall {
+    std::string name;
+    using Arg = NodePtr;
+    using ArgList = std::vector<Arg>;
+    ArgList args;
 };
 
 struct Node
@@ -89,7 +97,8 @@ struct Node
                    UnaryExpr,
                    BinaryExpr,
                    FunctionProto,
-                   FunctionDef> {
+                   FunctionDef,
+                   FunctionCall> {
     using variant::variant;
 
     template <typename Visitor>
