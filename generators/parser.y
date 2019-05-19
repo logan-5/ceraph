@@ -10,6 +10,10 @@
 
 #include <iostream>
 
+ast::NodePtr ptr(ast::Node& node) {
+    return ast::make_nodeptr(std::move(node));
+}
+
 template <Operator::Unary Op, typename Operand>
 ast::UnaryExpr make_unary(Operand&& operand);
 template <Operator::Binary Op, typename Lhs, typename Rhs>
@@ -42,6 +46,8 @@ YY_DECL;
 %type <ast::FunctionCall> function_call_expression;
 
 %type <ast::Node> if_else;
+
+%type <ast::CrappyForLoop> crappy_for_loop;
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
@@ -141,6 +147,7 @@ equality_expression: relational_expression { $$ = std::move($1); }
 
 expression: equality_expression { $$ = std::move($1); }
     | if_else { $$ = std::move($1); }
+    | crappy_for_loop { $$ = std::move($1); }
     ;
 
 function_proto: type_or_void IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{$1, std::move($2), std::move($4)}; };
@@ -153,7 +160,7 @@ param: NONVOID_TYPE IDENTIFIER { $$ = {$1, std::move($2)}; }
     | NONVOID_TYPE { $$ = {$1, std::nullopt}; }
     ;
 
-function_def: function_proto '{' expression[body] ';' '}' { $$ = ast::FunctionDef{std::move($1), ast::make_nodeptr(std::move($body))}; };
+function_def: function_proto '{' expression[body] ';' '}' { $$ = ast::FunctionDef{std::move($1), ptr($body)}; };
 
 function_call_expression: IDENTIFIER '(' maybe_call_arg_list ')' { $$ = ast::FunctionCall{std::move($1), std::move($3)}; };
 maybe_call_arg_list: call_arg_list { $$ = std::move($1); } | empty_call_arg_list { $$ = {}; };
@@ -161,21 +168,24 @@ empty_call_arg_list: | VOID;
 call_arg_list: call_arg { $$ = {std::move($1)}; } 
     | call_arg_list ',' call_arg { $1.push_back(std::move($3)); $$ = std::move($1); }
     ;
-call_arg: expression { $$ = ast::make_nodeptr(std::move($1)); };
+call_arg: expression { $$ = ptr($1); };
 
 type_or_void: NONVOID_TYPE { $$ = $1; } | VOID { $$ = Type::ID::Void; };
 
-if_else: IF '(' expression[cond] ')' expression[then] { $$ = ast::IfElse{ast::make_nodeptr(std::move($cond)), ast::make_nodeptr(std::move($then))}; }
-    | IF '(' expression[cond] ')' expression[then] ELSE expression[else_] { $$ = ast::IfElse{ast::make_nodeptr(std::move($cond)), ast::make_nodeptr(std::move($then)), ast::make_nodeptr(std::move($else_))}; }
+if_else: IF '(' expression[cond] ')' expression[then] { $$ = ast::IfElse{ptr($cond), ptr($then)}; }
+    | IF '(' expression[cond] ')' expression[then] ELSE expression[else_] { $$ = ast::IfElse{ptr($cond), ptr($then), ptr($else_)}; }
     ;
+
+crappy_for_loop: 
+    FOR IDENTIFIER[ind] '=' expression[init] ',' expression[cond] ',' expression[incr] ':' expression[body] { $$ = ast::CrappyForLoop{std::move($ind), ptr($init), ptr($cond), ptr($incr), ptr($body)}; } ;
 
 %%
 
 template <Operator::Unary Op, typename Operand>
 ast::UnaryExpr make_unary(Operand&& operand) {
-    return ast::UnaryExpr{Op, ast::make_nodeptr(std::move(operand))};
+    return ast::UnaryExpr{Op, ptr(operand)};
 }
 template <Operator::Binary Op, typename Lhs, typename Rhs>
 ast::BinaryExpr make_binary(Lhs&& lhs, Rhs&& rhs) {
-    return ast::BinaryExpr{Op, ast::make_nodeptr(std::move(lhs)), ast::make_nodeptr(std::move(rhs))};
+    return ast::BinaryExpr{Op, ptr(lhs), ptr(rhs)};
 }

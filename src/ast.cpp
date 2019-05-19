@@ -94,6 +94,8 @@ struct Dump {
             std::visit(next, *ifElse.elseBranch);
         }
     }
+
+    void operator()(const CrappyForLoop&) const { ostr << "crappy 'for' loop"; }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

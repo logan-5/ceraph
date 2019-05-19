@@ -14,6 +14,22 @@ using llvm::LLVMContext;
 using llvm::Module;
 using llvm::Value;
 
+namespace {
+template <typename F>
+struct ScopeGuard {
+    ScopeGuard(F in_f) : f{std::move(in_f)} {}
+    ~ScopeGuard() { std::invoke(f); }
+    ScopeGuard(const ScopeGuard&) = delete;
+    ScopeGuard& operator=(const ScopeGuard&) = delete;
+    ScopeGuard(ScopeGuard&&) = delete;
+    ScopeGuard& operator=(ScopeGuard&&) = delete;
+
+    F f;
+};
+template <typename F>
+ScopeGuard(F)->ScopeGuard<F>;
+}  // namespace
+
 #define DECLARE_OR_RETURN(NAME, INIT)       \
     auto NAME##OrErr = INIT;                \
     if (auto err = NAME##OrErr.takeError()) \
@@ -141,7 +157,8 @@ ReturnType Visitor::operator()(const ast::BinaryExpr& binary) const {
 ReturnType Visitor::operator()(const ast::Identifier& ident) const {
     if (auto it = instance.impl->namedValues.find(ident.name);
         it != instance.impl->namedValues.end()) {
-        return it->getValue();
+        if (auto* const value = it->getValue())
+            return value;
     }
     return err("identifier '" + ident.name + "' not found");
 }
@@ -244,7 +261,7 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
 
     auto& builder = instance.impl->builder;
 
-    auto* func = builder.GetInsertBlock()->getParent();
+    auto* const func = builder.GetInsertBlock()->getParent();
 
     auto* const thenBlock =
           llvm::BasicBlock::Create(instance.impl->context, "then", func);
@@ -276,6 +293,55 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
 
     return phi;
 }
+
+ReturnType Visitor::operator()(const ast::CrappyForLoop& loop) const {
+    auto& builder = instance.impl->builder;
+    auto& namedValues = instance.impl->namedValues;
+
+    DECLARE_OR_RETURN(init, loop.init->visit(*this));
+
+    auto* const func = builder.GetInsertBlock()->getParent();
+    auto* const preLoopBlock = builder.GetInsertBlock();
+    auto* const loopBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "loop", func);
+
+    builder.CreateBr(loopBlock);
+
+    builder.SetInsertPoint(loopBlock);
+    auto* const loopVar = builder.CreatePHI(init->getType(), 2, loop.induct);
+    loopVar->addIncoming(init, preLoopBlock);
+
+    auto* const oldVal = std::exchange(namedValues[loop.induct], loopVar);
+    ScopeGuard restore{[&] { namedValues[loop.induct] = oldVal; }};
+
+    DECLARE_OR_RETURN(cond, loop.cond->visit(*this));
+    if (cond->getType() !=
+        Type::get_type(Type::ID::Bool, instance.impl->context)) {
+        return err("loop condition is not a boolean expression");
+    }
+
+    auto* const bodyBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "body", func);
+    auto* const endBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "loopend", func);
+    builder.CreateCondBr(cond, bodyBlock, endBlock);
+
+    builder.SetInsertPoint(bodyBlock);
+    DECLARE_OR_RETURN(body, loop.body->visit(*this));
+
+    DECLARE_OR_RETURN(incr, loop.incr->visit(*this));
+    auto* const endBodyBlock = builder.GetInsertBlock();
+    loopVar->addIncoming(incr, endBodyBlock);
+    builder.CreateBr(loopBlock);
+
+    builder.SetInsertPoint(endBlock);
+    auto* const end =
+          llvm::cantFail(ast::Node{ast::IntLiteral{0}}.visit(*this));
+
+    return end;
+}
+
+/////
 
 Value* Visitor::make_floating_constant(Type::ID type,
                                        const llvm::APFloat& value) const {

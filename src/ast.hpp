@@ -101,6 +101,14 @@ struct IfElse {
     NodePtr elseBranch;
 };
 
+struct CrappyForLoop {
+    std::string induct;
+    NodePtr init;
+    NodePtr cond;
+    NodePtr incr;
+    NodePtr body;
+};
+
 struct Node
     : std::variant<BoolLiteral,
                    IntLiteral,
@@ -113,7 +121,8 @@ struct Node
                    FunctionProto,
                    FunctionDef,
                    FunctionCall,
-                   IfElse> {
+                   IfElse,
+                   CrappyForLoop> {
     using variant::variant;
 
     template <typename Visitor>

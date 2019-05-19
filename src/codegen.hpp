@@ -61,6 +61,8 @@ struct Visitor {
 
     ReturnType operator()(const ast::IfElse& ifElse) const;
 
+    ReturnType operator()(const ast::CrappyForLoop& loop) const;
+
    private:
     llvm::Value* make_floating_constant(Type::ID type,
                                         const llvm::APFloat& value) const;
