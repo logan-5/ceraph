@@ -43,6 +43,7 @@ struct IntegerLiteral : Literal<Rep, Ty> {
     }
 };
 
+using BoolLiteral = IntegerLiteral<bool, Type::ID::Bool>;
 using IntLiteral = IntegerLiteral<int, Type::ID::Int>;
 
 struct Identifier {
@@ -88,8 +89,21 @@ struct FunctionCall {
     ArgList args;
 };
 
+struct IfElse {
+    IfElse(NodePtr in_cond, NodePtr in_then)
+        : cond{std::move(in_cond)}, thenBranch{std::move(in_then)} {}
+    IfElse(NodePtr in_cond, NodePtr in_then, NodePtr in_else)
+        : cond{std::move(in_cond)}
+        , thenBranch{std::move(in_then)}
+        , elseBranch{std::move(in_else)} {}
+    NodePtr cond;
+    NodePtr thenBranch;
+    NodePtr elseBranch;
+};
+
 struct Node
-    : std::variant<IntLiteral,
+    : std::variant<BoolLiteral,
+                   IntLiteral,
                    FloatLiteral,
                    DoubleLiteral,
                    StringLiteral,
@@ -98,7 +112,8 @@ struct Node
                    BinaryExpr,
                    FunctionProto,
                    FunctionDef,
-                   FunctionCall> {
+                   FunctionCall,
+                   IfElse> {
     using variant::variant;
 
     template <typename Visitor>

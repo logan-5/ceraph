@@ -59,6 +59,8 @@ struct Visitor {
     ReturnType operator()(const ast::FunctionDef& func) const;
     ReturnType operator()(const ast::FunctionCall& call) const;
 
+    ReturnType operator()(const ast::IfElse& ifElse) const;
+
    private:
     llvm::Value* make_floating_constant(Type::ID type,
                                         const llvm::APFloat& value) const;

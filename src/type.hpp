@@ -18,6 +18,7 @@ class FunctionProto;
 namespace Type {
 
 enum class ID {
+    Bool,
     Int,
     Float,
     Double,
@@ -30,6 +31,9 @@ std::optional<ID> from_name(llvm::StringRef name);
 template <typename OStream>
 OStream& operator<<(OStream& ostr, ID ty) {
     switch (ty) {
+        case ID::Bool:
+            ostr << "bool";
+            break;
         case ID::Int:
             ostr << "int";
             break;
@@ -55,7 +59,7 @@ template <ID Ty>
 inline constexpr bool is_floating_v = is_floating<Ty>::value;
 
 template <ID Ty>
-struct is_integer : std::bool_constant<Ty == ID::Int> {};
+struct is_integer : std::bool_constant<Ty == ID::Int || Ty == ID::Bool> {};
 template <ID Ty>
 inline constexpr bool is_integer_v = is_integer<Ty>::value;
 
@@ -63,10 +67,14 @@ template <ID Ty>
 struct num_bits;
 template <>
 struct num_bits<ID::Int> : std::integral_constant<std::size_t, 32> {};
+template <>
+struct num_bits<ID::Bool> : std::integral_constant<std::size_t, 1> {};
 template <ID Ty>
 struct is_signed;
 template <>
 struct is_signed<ID::Int> : std::true_type {};
+template <>
+struct is_signed<ID::Bool> : std::false_type {};
 
 llvm::Type* get_type(ID theType, llvm::LLVMContext& context);
 

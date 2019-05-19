@@ -28,6 +28,7 @@ YY_DECL;
 
 %type <Type::ID> NONVOID_TYPE type_or_void
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression postfix_expression
+%type <ast::Node> equality_expression relational_expression
 %type <ast::Node> CONSTANT STRING_LITERAL
 %type <std::string> IDENTIFIER
 
@@ -39,6 +40,8 @@ YY_DECL;
 %type <ast::FunctionCall::Arg> call_arg;
 %type <ast::FunctionCall::ArgList> maybe_call_arg_list call_arg_list;
 %type <ast::FunctionCall> function_call_expression;
+
+%type <ast::Node> if_else;
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
@@ -52,7 +55,11 @@ YY_DECL;
 %token VOID
 %token STRUCT UNION ENUM ELLIPSIS
 
-%token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
+%token CASE DEFAULT SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
+
+%token IF
+%right ')'
+%right ELSE
 
 %%
 program: lines
@@ -124,7 +131,16 @@ term_expression: product_expression { $$ = std::move($1); }
     | term_expression '-' product_expression { $$ = make_binary<Operator::Binary::Minus>($1, $3); }
     ;
 
-expression: term_expression { $$ = std::move($1); }
+relational_expression: term_expression { $$ = std::move($1); }
+    | relational_expression '<' term_expression { $$ = make_binary<Operator::Binary::Less>($1, $3); }
+    ;
+
+equality_expression: relational_expression { $$ = std::move($1); }
+    | equality_expression EQ_OP relational_expression { $$ = make_binary<Operator::Binary::Equality>($1, $3); }
+    ;
+
+expression: equality_expression { $$ = std::move($1); }
+    | if_else { $$ = std::move($1); }
     ;
 
 function_proto: type_or_void IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{$1, std::move($2), std::move($4)}; };
@@ -148,6 +164,10 @@ call_arg_list: call_arg { $$ = {std::move($1)}; }
 call_arg: expression { $$ = ast::make_nodeptr(std::move($1)); };
 
 type_or_void: NONVOID_TYPE { $$ = $1; } | VOID { $$ = Type::ID::Void; };
+
+if_else: IF '(' expression[cond] ')' expression[then] { $$ = ast::IfElse{ast::make_nodeptr(std::move($cond)), ast::make_nodeptr(std::move($then))}; }
+    | IF '(' expression[cond] ')' expression[then] ELSE expression[else_] { $$ = ast::IfElse{ast::make_nodeptr(std::move($cond)), ast::make_nodeptr(std::move($then)), ast::make_nodeptr(std::move($else_))}; }
+    ;
 
 %%
 

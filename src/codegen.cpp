@@ -14,6 +14,12 @@ using llvm::LLVMContext;
 using llvm::Module;
 using llvm::Value;
 
+#define DECLARE_OR_RETURN(NAME, INIT)       \
+    auto NAME##OrErr = INIT;                \
+    if (auto err = NAME##OrErr.takeError()) \
+        return std::move(err);              \
+    const auto& NAME = *NAME##OrErr
+
 namespace codegen {
 
 char CodeGenError::ID;
@@ -52,10 +58,7 @@ ReturnType negate(CodeGenInstance::Impl& instance, Value* operand) {
 }  // namespace
 
 ReturnType Visitor::operator()(const ast::UnaryExpr& unary) const {
-    auto operandOrErr = unary.operand->visit(*this);
-    if (auto err = operandOrErr.takeError())
-        return std::move(err);
-    const auto& operand = *operandOrErr;
+    DECLARE_OR_RETURN(operand, unary.operand->visit(*this));
     using namespace Operator;
     switch (unary.op) {
         case Unary::Minus:
@@ -65,14 +68,8 @@ ReturnType Visitor::operator()(const ast::UnaryExpr& unary) const {
 }
 
 ReturnType Visitor::operator()(const ast::BinaryExpr& binary) const {
-    auto lhsOrErr = binary.lhs->visit(*this);
-    if (auto err = lhsOrErr.takeError())
-        return std::move(err);
-    const auto& lhs = *lhsOrErr;
-    auto rhsOrErr = binary.rhs->visit(*this);
-    if (auto err = rhsOrErr.takeError())
-        return std::move(err);
-    const auto& rhs = *rhsOrErr;
+    DECLARE_OR_RETURN(lhs, binary.lhs->visit(*this));
+    DECLARE_OR_RETURN(rhs, binary.rhs->visit(*this));
     assert(lhs->getType() ==
            rhs->getType());  // TODO implicit conversions in the front(er)end?
     llvm::Type* const type = lhs->getType();
@@ -107,7 +104,7 @@ ReturnType Visitor::operator()(const ast::BinaryExpr& binary) const {
             if (type->isFloatingPointTy()) {
                 return builder.CreateFDiv(lhs, rhs, "divf");
             } else if (type->isIntegerTy()) {
-                return builder.CreateSDiv(lhs, rhs, "divi");  // TODO unsigned
+                return builder.CreateSDiv(lhs, rhs, "sdivi");  // TODO unsigned
             } else {
                 return nullptr;
             }
@@ -115,12 +112,30 @@ ReturnType Visitor::operator()(const ast::BinaryExpr& binary) const {
             if (type->isFloatingPointTy()) {
                 return builder.CreateFRem(lhs, rhs, "mulf");
             } else if (type->isIntegerTy()) {
-                return builder.CreateSRem(lhs, rhs, "remi");  // TODO unsigned
+                return builder.CreateSRem(lhs, rhs, "sremi");  // TODO unsigned
+            } else {
+                return nullptr;
+            }
+
+        case Binary::Less:
+            if (type->isFloatingPointTy()) {
+                return builder.CreateFCmpOLT(lhs, rhs, "cmp_oltf");
+            } else if (type->isIntegerTy()) {
+                return builder.CreateICmpSLT(lhs, rhs,
+                                             "cmp_slti");  // TODO unsigned
+            } else {
+                return nullptr;
+            }
+        case Binary::Equality:
+            if (type->isFloatingPointTy()) {
+                return builder.CreateFCmpOEQ(lhs, rhs, "cmp_oeqf");
+            } else if (type->isIntegerTy()) {
+                return builder.CreateICmpEQ(lhs, rhs, "cmp_eqi");
             } else {
                 return nullptr;
             }
     }
-    return nullptr;
+    return err("not yet implemented");
 }
 
 ReturnType Visitor::operator()(const ast::Identifier& ident) const {
@@ -183,10 +198,7 @@ ReturnType Visitor::operator()(const ast::FunctionDef& func) const {
     for (auto& arg : f->args())
         instance.impl->namedValues[arg.getName()] = &arg;
 
-    auto bodyOrErr = func.body->visit(*this);
-    if (auto err = bodyOrErr.takeError())
-        return std::move(err);
-    const auto& body = *bodyOrErr;
+    DECLARE_OR_RETURN(body, func.body->visit(*this));
 
     if (!block->getTerminator() && Type::is_void(func.proto.returnType)) {
         builder.CreateRetVoid();
@@ -211,11 +223,7 @@ ReturnType Visitor::operator()(const ast::FunctionCall& call) const {
     llvm::SmallVector<Value*, 8> args;
     for (std::size_t i = 0; i < call.args.size(); ++i) {
         auto& argExpr = call.args[i];
-        auto argOrErr = argExpr->visit(*this);
-        if (auto err = argOrErr.takeError()) {
-            return std::move(err);
-        }
-        Value* const& arg = *argOrErr;
+        DECLARE_OR_RETURN(arg, argExpr->visit(*this));
         llvm::Argument& destArg = *std::next(f->arg_begin(), i);
         if (destArg.getType() != arg->getType()) {
             return err("type mismatch for argument " + llvm::Twine(i + 1));
@@ -225,6 +233,48 @@ ReturnType Visitor::operator()(const ast::FunctionCall& call) const {
 
     return instance.impl->builder.CreateCall(f->getFunctionType(), f, args,
                                              "call" + call.name);
+}
+
+ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
+    DECLARE_OR_RETURN(cond, ifElse.cond->visit(*this));
+    if (cond->getType() !=
+        Type::get_type(Type::ID::Bool, instance.impl->context)) {
+        return err("'if' condition is not a boolean expression");
+    }
+
+    auto& builder = instance.impl->builder;
+
+    auto* func = builder.GetInsertBlock()->getParent();
+
+    auto* const thenBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "then", func);
+    auto* const elseBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "else");
+    auto* const mergeBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "merge");
+
+    auto* const branchInst = builder.CreateCondBr(cond, thenBlock, elseBlock);
+    builder.SetInsertPoint(thenBlock);
+    DECLARE_OR_RETURN(thenBranch, ifElse.thenBranch->visit(*this));
+    builder.CreateBr(mergeBlock);
+    auto* const thenBlockEnd = builder.GetInsertBlock();
+
+    func->getBasicBlockList().push_back(elseBlock);
+    builder.SetInsertPoint(elseBlock);
+    DECLARE_OR_RETURN(elseBranch, ifElse.elseBranch->visit(*this));
+    if (elseBranch->getType() != thenBranch->getType()) {
+        return err("incompatible types in 'if' and 'else' branches");
+    }
+    builder.CreateBr(mergeBlock);
+    auto* const elseBlockEnd = builder.GetInsertBlock();
+
+    func->getBasicBlockList().push_back(mergeBlock);
+    builder.SetInsertPoint(mergeBlock);
+    auto* const phi = builder.CreatePHI(thenBranch->getType(), 2, "phi");
+    phi->addIncoming(thenBranch, thenBlockEnd);
+    phi->addIncoming(elseBranch, elseBlockEnd);
+
+    return phi;
 }
 
 Value* Visitor::make_floating_constant(Type::ID type,

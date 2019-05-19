@@ -43,6 +43,7 @@ IS			(u|U|l|L)*
 "else"			{ count(); return token::ELSE; }
 "enum"			{ count(); return token::ENUM; }
 "extern"		{ count(); return token::EXTERN; }
+"false"			{ count(); yylval->build<ast::Node>(ast::BoolLiteral(false)); return token::CONSTANT; }
 "for"			{ count(); return token::FOR; }
 "goto"			{ count(); return token::GOTO; }
 "if"			{ count(); return token::IF; }
@@ -55,6 +56,7 @@ IS			(u|U|l|L)*
 "static"		{ count(); return token::STATIC; }
 "struct"		{ count(); return token::STRUCT; }
 "switch"		{ count(); return token::SWITCH; }
+"true"			{ count(); yylval->build<ast::Node>(ast::BoolLiteral(true)); return token::CONSTANT; }
 "typedef"		{ count(); return token::TYPEDEF; }
 "union"			{ count(); return token::UNION; }
 "unsigned"		{ count(); return token::UNSIGNED; }

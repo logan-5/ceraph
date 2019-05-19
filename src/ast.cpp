@@ -76,6 +76,24 @@ struct Dump {
                 std::visit(next, *arg);
         }
     }
+
+    void operator()(const IfElse& ifElse) const {
+        indent();
+        ostr << '[' << (ifElse.elseBranch ? "if/else" : "if") << ']';
+        Dump next{indentLevel + 1, ostr};
+        ostr << " condition:\n";
+        std::visit(next, *ifElse.cond);
+        ostr << '\n';
+        indent();
+        ostr << "then:\n";
+        std::visit(next, *ifElse.thenBranch);
+        if (ifElse.elseBranch) {
+            ostr << '\n';
+            indent();
+            ostr << "else:\n";
+            std::visit(next, *ifElse.elseBranch);
+        }
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

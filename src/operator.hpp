@@ -9,6 +9,9 @@ enum class Binary {
     Multiply,
     Divide,
     Modulo,
+
+    Less,
+    Equality,
 };
 
 template <typename OStream>
@@ -28,6 +31,13 @@ OStream& operator<<(OStream& ostr, Binary b) {
             break;
         case Binary::Modulo:
             ostr << "Modulo";
+            break;
+
+        case Binary::Less:
+            ostr << "Less";
+            break;
+        case Binary::Equality:
+            ostr << "Equality";
             break;
     }
     return ostr;

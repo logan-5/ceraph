@@ -10,10 +10,8 @@ namespace Type {
 
 std::optional<ID> from_name(llvm::StringRef name) {
     static const llvm::StringMap<ID> typeNames{
-          {"int", ID::Int},
-          {"float", ID::Float},
-          {"double", ID::Double},
-          {"void", ID::Void},
+          {"bool", ID::Bool},     {"int", ID::Int},   {"float", ID::Float},
+          {"double", ID::Double}, {"void", ID::Void},
     };
     if (auto typeIt = typeNames.find(name); typeIt != typeNames.end()) {
         return typeIt->getValue();
@@ -23,6 +21,9 @@ std::optional<ID> from_name(llvm::StringRef name) {
 
 llvm::Type* get_type(ID theType, llvm::LLVMContext& theContext) {
     switch (theType) {
+        case ID::Bool:
+            return llvm::IntegerType::get(theContext,
+                                          num_bits<ID::Bool>::value);
         case ID::Int:
             return llvm::IntegerType::get(theContext, num_bits<ID::Int>::value);
         case ID::Float:
