@@ -47,6 +47,7 @@ IS			(u|U|l|L)*
 "for"			{ count(); return token::FOR; }
 "goto"			{ count(); return token::GOTO; }
 "if"			{ count(); return token::IF; }
+"let"           { count(); return token::LET; }
 "long"			{ count(); return token::LONG; }
 "register"		{ count(); return token::REGISTER; }
 "return"		{ count(); return token::RETURN; }

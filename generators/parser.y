@@ -33,7 +33,7 @@ YY_DECL;
 
 %type <Type::ID> NONVOID_TYPE type_or_void
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression postfix_expression
-%type <ast::Node> equality_expression relational_expression
+%type <ast::Node> equality_expression relational_expression flow_expression
 %type <ast::Node> CONSTANT STRING_LITERAL
 %type <std::string> IDENTIFIER
 
@@ -42,6 +42,9 @@ YY_DECL;
 %type <ast::Node> expression_statement
 %type <ast::NullStmt> null_statement
 %type <ast::Block> block
+
+%type <ast::Declaration> declaration
+%type <ast::Assignment> assignment
 
 %type <ast::FunctionProto> function_proto
 %type <ast::FunctionProto::Arg> param
@@ -63,6 +66,7 @@ YY_DECL;
 %token XOR_ASSIGN OR_ASSIGN NONVOID_TYPE
 %token LEX_ERROR
 
+%token LET
 %token TYPEDEF EXTERN STATIC AUTO REGISTER
 %token CHAR SHORT LONG SIGNED UNSIGNED CONST VOLATILE
 %token VOID
@@ -103,24 +107,12 @@ line: function_proto ';' {
         llvm::errs() << "error: " << codeE.takeError() << '\n';
         llvm::errs() << "no code generated\n";
     }
-}
-| block {
-    if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
-        const auto& code = *codeE;
-        if (code)
-            code->print(llvm::errs());
-        else llvm::errs() << "[void]";
-        llvm::errs() << '\n';
-        assert(!codegen.verify(llvm::errs()));
-    } else {
-        llvm::errs() << "error: " << codeE.takeError() << '\n';
-        llvm::errs() << "no code generated\n";
-    }
 };
 
 statement
     : expression_statement { $$ = std::move($1); }
     | null_statement { $$ = std::move($1); }
+    | declaration { $$ = std::move($1); }
     ;
 
 statements: statement { $$ = {ptr($1)}; }
@@ -133,10 +125,15 @@ block_statements: statements { $1.push_back(ptr(ast::NullStmt{})); $$ = std::mov
     | { $$ = {ptr(ast::NullStmt{})}; }
     ;
 
-block: '{' block_statements '}' { $$ = ast::Block{std::move($2)}; }
+block: '{' block_statements '}' { $$ = ast::Block{std::move($2)}; };
 
-expression_statement: expression ';' { $$ = std::move($1); }
-null_statement: ';' { $$ = ast::NullStmt{}; }
+expression_statement: expression ';' { $$ = std::move($1); };
+null_statement: ';' { $$ = ast::NullStmt{}; };
+
+declaration: NONVOID_TYPE IDENTIFIER '=' expression ';' { $$ = ast::Declaration{$1, std::move($2), ptr($4)}; }
+    | LET IDENTIFIER '=' expression ';' { $$ = ast::Declaration{std::nullopt, std::move($2), ptr($4)}; }
+    ;
+assignment: IDENTIFIER '=' expression { $$ = ast::Assignment{std::move($1), ptr($3)}; };
 
 primary_expression: 
     IDENTIFIER { $$ = ast::Identifier{std::move($1)}; }
@@ -172,9 +169,14 @@ equality_expression: relational_expression { $$ = std::move($1); }
     | equality_expression EQ_OP relational_expression { $$ = make_binary<Operator::Binary::Equality>($1, $3); }
     ;
 
-expression: equality_expression { $$ = std::move($1); }
+flow_expression: equality_expression { $$ = std::move($1); }
     | if_else { $$ = std::move($1); }
     | crappy_for_loop { $$ = std::move($1); }
+    ;
+
+expression
+    : flow_expression { $$ = std::move($1); }
+    | assignment { $$ = std::move($1); }
     ;
 
 function_proto: type_or_void IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{$1, std::move($2), std::move($4)}; };
@@ -200,7 +202,7 @@ call_arg: expression { $$ = ptr($1); };
 type_or_void: NONVOID_TYPE { $$ = $1; } | VOID { $$ = Type::ID::Void; };
 
 if_else: IF '(' expression[cond] ')' expression[then] { $$ = ast::IfElse{ptr($cond), ptr($then)}; }
-    | IF '(' expression[cond] ')' expression[then] ELSE expression[else_] { $$ = ast::IfElse{ptr($cond), ptr($then), ptr($else_)}; }
+    | IF '(' expression[cond] ')' block[then] ELSE block[else_] { $$ = ast::IfElse{ptr($cond), ptr($then), ptr($else_)}; }
     ;
 
 crappy_for_loop: 

@@ -25,6 +25,21 @@ auto transform(const llvm::SmallVector<T, N>& v, Func f) {
     std::transform(v.begin(), v.end(), std::back_inserter(ret), f);
     return ret;
 }
+
+template <typename F>
+struct ScopeGuard {
+    ScopeGuard(F in_f) : f{std::move(in_f)} {}
+    ~ScopeGuard() { std::invoke(f); }
+    ScopeGuard(const ScopeGuard&) = delete;
+    ScopeGuard& operator=(const ScopeGuard&) = delete;
+    ScopeGuard(ScopeGuard&&) = delete;
+    ScopeGuard& operator=(ScopeGuard&&) = delete;
+
+    F f;
+};
+template <typename F>
+ScopeGuard(F)->ScopeGuard<F>;
+
 }  // namespace util
 
 #endif

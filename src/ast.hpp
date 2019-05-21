@@ -121,6 +121,17 @@ struct Block {
     Stmts stmts;
 };
 
+struct Declaration {
+    std::optional<Type::ID> type;
+    std::string name;
+    NodePtr init;
+};
+
+struct Assignment {
+    std::string dest;
+    NodePtr rhs;
+};
+
 struct Node
     : std::variant<NullStmt,
                    BoolLiteral,
@@ -136,7 +147,9 @@ struct Node
                    FunctionCall,
                    IfElse,
                    CrappyForLoop,
-                   Block> {
+                   Block,
+                   Declaration,
+                   Assignment> {
     using variant::variant;
 
     template <typename Visitor>

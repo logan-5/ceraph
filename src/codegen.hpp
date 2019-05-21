@@ -8,6 +8,11 @@
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Error.h"
 
+namespace llvm {
+class AllocaInst;
+class Twine;
+}  // namespace llvm
+
 namespace codegen {
 
 struct CodeGenInstance {
@@ -29,9 +34,7 @@ struct CodeGenError : public llvm::ErrorInfo<CodeGenError> {
 };
 
 struct Visitor {
-    using ReturnType = llvm::Expected<
-          llvm::Value*>;  // TODO remove awkward nullptr state:
-                          // llvm::Expected<std::reference_wrapper<llvm::Value>>;
+    using ReturnType = llvm::Expected<llvm::Value*>;
 
     CodeGenInstance& instance;
 
@@ -66,11 +69,17 @@ struct Visitor {
     ReturnType operator()(const ast::NullStmt nullStmt) const;
     ReturnType operator()(const ast::Block& block) const;
 
+    ReturnType operator()(const ast::Declaration& decl) const;
+    ReturnType operator()(const ast::Assignment& assign) const;
+
    private:
     llvm::Value* make_floating_constant(Type::ID type,
                                         const llvm::APFloat& value) const;
     llvm::Value* make_integer_constant(Type::ID type,
                                        const llvm::APInt& value) const;
+
+    llvm::AllocaInst* createAllocaInEntryBlock(llvm::Type* type,
+                                               const llvm::Twine& name) const;
 };
 
 }  // namespace codegen

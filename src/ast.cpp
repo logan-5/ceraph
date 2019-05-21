@@ -110,6 +110,20 @@ struct Dump {
             std::visit(next, *stmt);
         }
     }
+
+    void operator()(const Declaration& decl) const {
+        indent();
+        ostr << "[declaration]: var '" << decl.name << "', init:\n";
+        Dump next{indentLevel + 1, ostr};
+        std::visit(next, *decl.init);
+    }
+
+    void operator()(const Assignment& assign) const {
+        indent();
+        ostr << "[assignment]: var '" << assign.dest << "', new value:\n";
+        Dump next{indentLevel + 1, ostr};
+        std::visit(next, *assign.rhs);
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;
