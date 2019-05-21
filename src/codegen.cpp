@@ -287,7 +287,13 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
 
     func->getBasicBlockList().push_back(elseBlock);
     builder.SetInsertPoint(elseBlock);
-    DECLARE_OR_RETURN(elseBranch, ifElse.elseBranch->visit(*this));
+    const bool hasElseBranch = ifElse.elseBranch != nullptr;
+    if (!hasElseBranch && !isVoid(thenBranch)) {
+        return err("'if' without 'else' must evaluate to void");
+    }
+    DECLARE_OR_RETURN(elseBranch, hasElseBranch
+                                        ? ifElse.elseBranch->visit(*this)
+                                        : ReturnType{nullptr});
     const bool bothVoid = isVoid(thenBranch) && isVoid(elseBranch);
     if (!bothVoid && ((isVoid(thenBranch) != isVoid(elseBranch)) ||
                       (thenBranch->getType() != elseBranch->getType()))) {

@@ -201,8 +201,8 @@ call_arg: expression { $$ = ptr($1); };
 
 type_or_void: NONVOID_TYPE { $$ = $1; } | VOID { $$ = Type::ID::Void; };
 
-if_else: IF '(' expression[cond] ')' expression[then] { $$ = ast::IfElse{ptr($cond), ptr($then)}; }
-    | IF '(' expression[cond] ')' block[then] ELSE block[else_] { $$ = ast::IfElse{ptr($cond), ptr($then), ptr($else_)}; }
+if_else: IF expression[cond] block[then] { $$ = ast::IfElse{ptr($cond), ptr($then)}; }
+    | IF expression[cond] block[then] ELSE block[else_] { $$ = ast::IfElse{ptr($cond), ptr($then), ptr($else_)}; }
     ;
 
 crappy_for_loop: 
