@@ -96,6 +96,20 @@ struct Dump {
     }
 
     void operator()(const CrappyForLoop&) const { ostr << "crappy 'for' loop"; }
+
+    void operator()(NullStmt) const {
+        indent();
+        ostr << "[null statement]";
+    }
+
+    void operator()(const Block& block) const {
+        indent();
+        ostr << "[block]:\n";
+        Dump next{indentLevel + 1, ostr};
+        for (auto& stmt : block.stmts) {
+            std::visit(next, *stmt);
+        }
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

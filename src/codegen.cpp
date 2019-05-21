@@ -335,10 +335,27 @@ ReturnType Visitor::operator()(const ast::CrappyForLoop& loop) const {
     builder.CreateBr(loopBlock);
 
     builder.SetInsertPoint(endBlock);
-    auto* const end =
-          llvm::cantFail(ast::Node{ast::IntLiteral{0}}.visit(*this));
+    auto* const end = llvm::cantFail(this->operator()(ast::IntLiteral{0}));
 
     return end;
+}
+
+ReturnType Visitor::operator()(const ast::NullStmt) const {
+    return nullptr;
+}
+
+ReturnType Visitor::operator()(const ast::Block& block) const {
+    if (block.stmts.empty())
+        return nullptr;
+
+    const auto lastStatementIt = std::prev(block.stmts.end());
+    for (auto it = block.stmts.begin(); it != lastStatementIt; ++it) {
+        DECLARE_OR_RETURN(stmt, (*it)->visit(*this));
+        (void)stmt;
+    }
+
+    DECLARE_OR_RETURN(stmt, (*lastStatementIt)->visit(*this));
+    return stmt;
 }
 
 /////

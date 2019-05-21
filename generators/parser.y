@@ -10,7 +10,8 @@
 
 #include <iostream>
 
-ast::NodePtr ptr(ast::Node& node) {
+template <typename NodeT>
+ast::NodePtr ptr(NodeT&& node) {
     return ast::make_nodeptr(std::move(node));
 }
 
@@ -35,6 +36,12 @@ YY_DECL;
 %type <ast::Node> equality_expression relational_expression
 %type <ast::Node> CONSTANT STRING_LITERAL
 %type <std::string> IDENTIFIER
+
+%type <ast::Node> statement 
+%type <ast::Block::Stmts> statements block_statements
+%type <ast::Node> expression_statement
+%type <ast::NullStmt> null_statement
+%type <ast::Block> block
 
 %type <ast::FunctionProto> function_proto
 %type <ast::FunctionProto::Arg> param
@@ -75,19 +82,7 @@ program: lines
 err: error | LEX_ERROR { std::cerr << "lex error\n"; };
 
 lines: | lines line;
-line: expression ';' { 
-    llvm::errs() << $1 << '\n'; 
-    if (auto codeE = $1.visit(codegen::Visitor{codegen})) {
-        const auto& code = *codeE;
-        code->print(llvm::errs());
-        llvm::errs() << '\n';
-        assert(!codegen.verify(llvm::errs()));
-    } else {
-        llvm::errs() << "error: " << codeE.takeError() << '\n';
-        llvm::errs() << "no code generated\n";
-    }
-} 
-| function_proto ';' { 
+line: function_proto ';' { 
     if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
         const auto& code = *codeE;
         code->print(llvm::errs());
@@ -109,7 +104,39 @@ line: expression ';' {
         llvm::errs() << "no code generated\n";
     }
 }
-| ';';
+| block {
+    if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
+        const auto& code = *codeE;
+        if (code)
+            code->print(llvm::errs());
+        else llvm::errs() << "[void]";
+        llvm::errs() << '\n';
+        assert(!codegen.verify(llvm::errs()));
+    } else {
+        llvm::errs() << "error: " << codeE.takeError() << '\n';
+        llvm::errs() << "no code generated\n";
+    }
+};
+
+statement
+    : expression_statement { $$ = std::move($1); }
+    | null_statement { $$ = std::move($1); }
+    ;
+
+statements: statement { $$ = {ptr($1)}; }
+    | statements statement { $1.push_back(ptr($2)); $$ = std::move($1); }
+    ;
+
+block_statements: statements { $1.push_back(ptr(ast::NullStmt{})); $$ = std::move($1); }
+    | statements expression { $1.push_back(ptr($2)); $$ = std::move($1); }
+    | expression { $$ = {ptr($1)}; }
+    | { $$ = {ptr(ast::NullStmt{})}; }
+    ;
+
+block: '{' block_statements '}' { $$ = ast::Block{std::move($2)}; }
+
+expression_statement: expression ';' { $$ = std::move($1); }
+null_statement: ';' { $$ = ast::NullStmt{}; }
 
 primary_expression: 
     IDENTIFIER { $$ = ast::Identifier{std::move($1)}; }
@@ -160,7 +187,7 @@ param: NONVOID_TYPE IDENTIFIER { $$ = {$1, std::move($2)}; }
     | NONVOID_TYPE { $$ = {$1, std::nullopt}; }
     ;
 
-function_def: function_proto '{' expression[body] ';' '}' { $$ = ast::FunctionDef{std::move($1), ptr($body)}; };
+function_def: function_proto block[body] { $$ = ast::FunctionDef{std::move($1), ptr($body)}; };
 
 function_call_expression: IDENTIFIER '(' maybe_call_arg_list ')' { $$ = ast::FunctionCall{std::move($1), std::move($3)}; };
 maybe_call_arg_list: call_arg_list { $$ = std::move($1); } | empty_call_arg_list { $$ = {}; };

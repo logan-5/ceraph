@@ -12,15 +12,20 @@ namespace ast {
 
 struct Node;
 
+template <typename T, typename Tag>
+struct VectorWrapper : public std::vector<T> {
+    using std::vector<T>::vector;
+};
+
 using NodePtr = std::shared_ptr<Node>;
-template <typename NodeType = Node, typename... Args>
+template <typename... Args>
 NodePtr make_nodeptr(Args&&... args) {
-    return std::make_shared<NodeType>(std::forward<Args>(args)...);
+    return std::make_shared<Node>(std::forward<Args>(args)...);
 }
 
 template <typename Rep, Type::ID Ty>
 struct Literal {
-    constexpr Literal() noexcept = default;
+    // constexpr Literal() noexcept = default;
     template <typename T>
     Literal(T&& t) : rep{std::forward<T>(t)} {}
 
@@ -109,8 +114,16 @@ struct CrappyForLoop {
     NodePtr body;
 };
 
+using NullStmt = std::monostate;
+
+struct Block {
+    using Stmts = VectorWrapper<NodePtr, Block>;
+    Stmts stmts;
+};
+
 struct Node
-    : std::variant<BoolLiteral,
+    : std::variant<NullStmt,
+                   BoolLiteral,
                    IntLiteral,
                    FloatLiteral,
                    DoubleLiteral,
@@ -122,7 +135,8 @@ struct Node
                    FunctionDef,
                    FunctionCall,
                    IfElse,
-                   CrappyForLoop> {
+                   CrappyForLoop,
+                   Block> {
     using variant::variant;
 
     template <typename Visitor>
