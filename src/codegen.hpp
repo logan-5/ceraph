@@ -17,11 +17,12 @@ namespace codegen {
 
 struct CodeGenInstance {
     CodeGenInstance();
+    ~CodeGenInstance();
 
     bool verify(llvm::raw_ostream&) const;
 
     struct Impl;
-    std::shared_ptr<Impl> impl;
+    std::unique_ptr<Impl> impl;
 };
 
 struct CodeGenError : public llvm::ErrorInfo<CodeGenError> {
@@ -71,6 +72,8 @@ struct Visitor {
 
     ReturnType operator()(const ast::Declaration& decl) const;
     ReturnType operator()(const ast::Assignment& assign) const;
+
+    ReturnType operator()(const ast::Return& ret) const;
 
    private:
     llvm::Value* make_floating_constant(Type::ID type,

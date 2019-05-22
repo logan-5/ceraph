@@ -108,6 +108,7 @@ struct Dump {
         Dump next{indentLevel + 1, ostr};
         for (auto& stmt : block.stmts) {
             std::visit(next, *stmt);
+            ostr << '\n';
         }
     }
 
@@ -123,6 +124,16 @@ struct Dump {
         ostr << "[assignment]: var '" << assign.dest << "', new value:\n";
         Dump next{indentLevel + 1, ostr};
         std::visit(next, *assign.rhs);
+    }
+
+    void operator()(const Return& ret) const {
+        indent();
+        ostr << "[return]";
+        if (ret.value) {
+            ostr << ":\n";
+            Dump next{indentLevel + 1, ostr};
+            std::visit(next, *ret.value);
+        }
     }
 };
 template <typename OStream>

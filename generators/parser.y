@@ -42,6 +42,7 @@ YY_DECL;
 %type <ast::Node> expression_statement
 %type <ast::NullStmt> null_statement
 %type <ast::Block> block
+%type <ast::Return> return_statement
 
 %type <ast::Declaration> declaration
 %type <ast::Assignment> assignment
@@ -113,6 +114,7 @@ statement
     : expression_statement { $$ = std::move($1); }
     | null_statement { $$ = std::move($1); }
     | declaration { $$ = std::move($1); }
+    | return_statement { $$ = std::move($1); }
     ;
 
 statements: statement { $$ = {ptr($1)}; }
@@ -134,6 +136,10 @@ declaration: NONVOID_TYPE IDENTIFIER '=' expression ';' { $$ = ast::Declaration{
     | LET IDENTIFIER '=' expression ';' { $$ = ast::Declaration{std::nullopt, std::move($2), ptr($4)}; }
     ;
 assignment: IDENTIFIER '=' expression { $$ = ast::Assignment{std::move($1), ptr($3)}; };
+
+return_statement: RETURN ';' { $$ = ast::Return{}; }
+    | RETURN expression ';' { $$ = ast::Return{ptr($2)}; }
+    ;
 
 primary_expression: 
     IDENTIFIER { $$ = ast::Identifier{std::move($1)}; }

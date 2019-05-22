@@ -43,7 +43,7 @@ set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/type.cpp)
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/util.hpp)
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/util.cpp)
 
-find_package(LLVM REQUIRED CONFIG)
+find_package(LLVM 8 REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 set(INCLUDE_DIRS ${INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})

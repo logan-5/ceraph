@@ -21,6 +21,10 @@ namespace {
 bool isVoid(llvm::Value* v) {
     return !v || v->getType()->isVoidTy();
 }
+
+bool breaksOrReturns(const llvm::BasicBlock* const block) {
+    return block->getTerminator();
+}
 }  // namespace
 
 #define DECLARE_OR_RETURN(NAME, INIT)       \
@@ -49,9 +53,17 @@ struct CodeGenInstance::Impl {
     IRBuilder<> builder{context};
     std::unique_ptr<Module> module{std::make_unique<Module>("module", context)};
     scope::SymbolTable symtable;
+
+    llvm::Function* getCurrentFunction() const {
+        return builder.GetInsertBlock()->getParent();
+    }
+    llvm::Type* getCurrentReturnType() const {
+        return getCurrentFunction()->getReturnType();
+    }
 };
 
-CodeGenInstance::CodeGenInstance() : impl{std::make_shared<Impl>()} {}
+CodeGenInstance::CodeGenInstance() : impl{std::make_unique<Impl>()} {}
+CodeGenInstance::~CodeGenInstance() = default;
 
 bool CodeGenInstance::verify(llvm::raw_ostream& ostr) const {
     return llvm::verifyModule(*impl->module, &ostr);
@@ -261,6 +273,57 @@ ReturnType Visitor::operator()(const ast::FunctionCall& call) const {
           f->getReturnType()->isVoidTy() ? "" : "call" + call.name);
 }
 
+namespace {
+ReturnType setUpMergeBlock(llvm::Value* const thenValue,
+                           llvm::BasicBlock* const thenBlock,
+                           llvm::Value* const elseValue,
+                           llvm::BasicBlock* const elseBlock,
+                           llvm::BasicBlock* const mergeBlock,
+                           IRBuilder<>& builder) {
+    const bool thenReturnsOrBreaks = breaksOrReturns(thenBlock);
+    const bool elseReturnsOrBreaks = breaksOrReturns(elseBlock);
+    if (thenReturnsOrBreaks && !elseReturnsOrBreaks) {
+        builder.SetInsertPoint(elseBlock);
+        builder.CreateBr(mergeBlock);
+        builder.SetInsertPoint(mergeBlock);
+        auto* const phi =
+              builder.CreatePHI(elseValue->getType(), 1, "dummyphi");
+        phi->addIncoming(elseValue, elseBlock);
+        return phi;
+    }
+    if (!thenReturnsOrBreaks && elseReturnsOrBreaks) {
+        builder.SetInsertPoint(thenBlock);
+        builder.CreateBr(mergeBlock);
+        builder.SetInsertPoint(mergeBlock);
+        auto* const phi =
+              builder.CreatePHI(thenValue->getType(), 1, "dummyphi");
+        phi->addIncoming(thenValue, thenBlock);
+        return phi;
+    }
+
+    const bool bothVoid = isVoid(thenValue) && isVoid(elseValue);
+    if (!bothVoid && ((isVoid(thenValue) != isVoid(elseValue)) ||
+                      (thenValue->getType() != elseValue->getType()))) {
+        return err("incompatible types in 'if' and 'else' branches");
+    }
+
+    if (!bothVoid) {
+        builder.SetInsertPoint(thenBlock);
+        builder.CreateBr(mergeBlock);
+        builder.SetInsertPoint(elseBlock);
+        builder.CreateBr(mergeBlock);
+        builder.SetInsertPoint(mergeBlock);
+        auto* const phi = builder.CreatePHI(thenValue->getType(), 2, "phi");
+        phi->addIncoming(thenValue, thenBlock);
+        phi->addIncoming(elseValue, elseBlock);
+        return phi;
+    }
+
+    builder.SetInsertPoint(mergeBlock);
+    return nullptr;
+}
+}  // namespace
+
 ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
     DECLARE_OR_RETURN_NOVOID(cond, ifElse.cond->visit(*this));
     if (cond->getType() !=
@@ -282,7 +345,6 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
     auto* const branchInst = builder.CreateCondBr(cond, thenBlock, elseBlock);
     builder.SetInsertPoint(thenBlock);
     DECLARE_OR_RETURN(thenBranch, ifElse.thenBranch->visit(*this));
-    builder.CreateBr(mergeBlock);
     auto* const thenBlockEnd = builder.GetInsertBlock();
 
     func->getBasicBlockList().push_back(elseBlock);
@@ -294,24 +356,11 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
     DECLARE_OR_RETURN(elseBranch, hasElseBranch
                                         ? ifElse.elseBranch->visit(*this)
                                         : ReturnType{nullptr});
-    const bool bothVoid = isVoid(thenBranch) && isVoid(elseBranch);
-    if (!bothVoid && ((isVoid(thenBranch) != isVoid(elseBranch)) ||
-                      (thenBranch->getType() != elseBranch->getType()))) {
-        return err("incompatible types in 'if' and 'else' branches");
-    }
-    builder.CreateBr(mergeBlock);
     auto* const elseBlockEnd = builder.GetInsertBlock();
-
     func->getBasicBlockList().push_back(mergeBlock);
-    builder.SetInsertPoint(mergeBlock);
 
-    if (!bothVoid) {
-        auto* const phi = builder.CreatePHI(thenBranch->getType(), 2, "phi");
-        phi->addIncoming(thenBranch, thenBlockEnd);
-        phi->addIncoming(elseBranch, elseBlockEnd);
-        return phi;
-    }
-    return nullptr;
+    return setUpMergeBlock(thenBranch, thenBlockEnd, elseBranch, elseBlockEnd,
+                           mergeBlock, builder);
 }
 
 ReturnType Visitor::operator()(const ast::CrappyForLoop& loop) const {
@@ -414,7 +463,23 @@ ReturnType Visitor::operator()(const ast::Assignment& assign) const {
         return err("cannot assign new value, type mismatch");
     }
     builder.CreateStore(rhs, alloca);
-    return rhs;
+    return nullptr;
+}
+
+ReturnType Visitor::operator()(const ast::Return& ret) const {
+    auto* const returnType = instance.impl->getCurrentReturnType();
+    if (!ret.value) {
+        if (!returnType->isVoidTy())
+            return err("returning void from non-void function");
+        return instance.impl->builder.CreateRetVoid();
+    }
+    DECLARE_OR_RETURN(value, ret.value->visit(*this));
+    if (returnType != value->getType()) {
+        return err("return type mismatch");
+    }
+    return value->getType()->isVoidTy()
+                 ? instance.impl->builder.CreateRetVoid()
+                 : instance.impl->builder.CreateRet(value);
 }
 
 /////

@@ -132,6 +132,10 @@ struct Assignment {
     NodePtr rhs;
 };
 
+struct Return {
+    NodePtr value;
+};
+
 struct Node
     : std::variant<NullStmt,
                    BoolLiteral,
@@ -149,7 +153,8 @@ struct Node
                    CrappyForLoop,
                    Block,
                    Declaration,
-                   Assignment> {
+                   Assignment,
+                   Return> {
     using variant::variant;
 
     template <typename Visitor>
