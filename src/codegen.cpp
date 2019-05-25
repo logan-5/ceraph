@@ -41,7 +41,7 @@ bool breaksOrReturns(const llvm::BasicBlock* const block) {
 
 namespace codegen {
 
-char CodeGenError::ID;
+char CodeGenError::ID = 0;
 auto err(const llvm::Twine& desc) {
     return llvm::make_error<CodeGenError>(desc);
 }
@@ -52,7 +52,7 @@ struct CodeGenInstance::Impl {
     LLVMContext context;
     IRBuilder<> builder{context};
     std::unique_ptr<Module> module{std::make_unique<Module>("module", context)};
-    scope::SymbolTable symtable;
+    scope::SymbolTable<llvm::AllocaInst*> symtable;
 
     llvm::Function* getCurrentFunction() const {
         return builder.GetInsertBlock()->getParent();

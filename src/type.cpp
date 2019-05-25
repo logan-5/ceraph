@@ -21,6 +21,9 @@ std::optional<ID> from_name(llvm::StringRef name) {
 
 llvm::Type* get_type(ID theType, llvm::LLVMContext& theContext) {
     switch (theType) {
+        case ID::Never:
+            return nullptr;
+
         case ID::Bool:
             return llvm::IntegerType::get(theContext,
                                           num_bits<ID::Bool>::value);
@@ -53,6 +56,26 @@ llvm::FunctionType* get_type(const ast::FunctionProto& proto,
           });
 
     return llvm::FunctionType::get(returnType, argTypes, false);
+}
+
+const char* to_string(ID ty) {
+    switch (ty) {
+        case ID::Never:
+            return "never";
+        case ID::Bool:
+            return "bool";
+        case ID::Int:
+            return "int";
+        case ID::Float:
+            return "float";
+        case ID::Double:
+            return "double";
+        case ID::StringLiteral:
+            return "string";
+        case ID::Void:
+            return "void";
+    }
+    return "";
 }
 
 }  // namespace Type

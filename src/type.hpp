@@ -18,6 +18,8 @@ class FunctionProto;
 namespace Type {
 
 enum class ID {
+    Never,
+
     Bool,
     Int,
     Float,
@@ -28,40 +30,23 @@ enum class ID {
 
 std::optional<ID> from_name(llvm::StringRef name);
 
+const char* to_string(ID ty);
 template <typename OStream>
 OStream& operator<<(OStream& ostr, ID ty) {
-    switch (ty) {
-        case ID::Bool:
-            ostr << "bool";
-            break;
-        case ID::Int:
-            ostr << "int";
-            break;
-        case ID::Float:
-            ostr << "float";
-            break;
-        case ID::Double:
-            ostr << "double";
-            break;
-        case ID::StringLiteral:
-            ostr << "string";
-            break;
-        case ID::Void:
-            ostr << "void";
-            break;
-    }
-    return ostr;
+    return ostr << to_string(ty);
 }
 
-template <ID Ty>
-struct is_floating : std::bool_constant<Ty == ID::Float || Ty == ID::Double> {};
-template <ID Ty>
-inline constexpr bool is_floating_v = is_floating<Ty>::value;
+inline constexpr bool is_floating(ID ty) {
+    return ty == ID::Float || ty == ID::Double;
+}
 
-template <ID Ty>
-struct is_integer : std::bool_constant<Ty == ID::Int || Ty == ID::Bool> {};
-template <ID Ty>
-inline constexpr bool is_integer_v = is_integer<Ty>::value;
+inline constexpr bool is_integer(ID ty) {
+    return ty == ID::Int || ty == ID::Bool;
+}
+
+inline constexpr bool is_arithmetic(ID ty) {
+    return is_floating(ty) || (is_integer(ty) && ty != ID::Bool);
+}
 
 template <ID Ty>
 struct num_bits;
@@ -83,6 +68,16 @@ llvm::FunctionType* get_type(const ast::FunctionProto& proto,
 
 inline bool is_void(ID t) {
     return t == ID::Void;
+}
+
+inline std::optional<ID> matched(ID a, ID b) {
+    if (a == ID::Never)
+        return b;
+    else if (b == ID::Never)
+        return a;
+    else if (a == b)
+        return a;
+    return std::nullopt;
 }
 
 }  // namespace Type

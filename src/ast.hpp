@@ -38,7 +38,7 @@ using DoubleLiteral = Literal<double, Type::ID::Double>;
 
 template <typename Rep, Type::ID Ty>
 struct IntegerLiteral : Literal<Rep, Ty> {
-    static_assert(Type::is_integer_v<Ty>);
+    static_assert(Type::is_integer(Ty));
     using Literal<Rep, Ty>::Literal;
     static constexpr unsigned getNumBits() noexcept {
         return Type::num_bits<Ty>::value;

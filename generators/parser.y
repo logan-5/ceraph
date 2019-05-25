@@ -4,6 +4,7 @@
 #include "ast.hpp"
 #include "codegen.hpp"
 #include "operator.hpp"
+#include "sema.hpp"
 #include "parser.hpp"
 
 #include "llvm/Support/raw_ostream.h"
@@ -30,6 +31,7 @@ YY_DECL;
 %define parse.assert
 %define parse.error verbose
 %parse-param {codegen::CodeGenInstance& codegen}
+%parse-param {sema::GetType& typechecker}
 
 %type <Type::ID> NONVOID_TYPE type_or_void
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression postfix_expression
@@ -88,6 +90,11 @@ err: error | LEX_ERROR { std::cerr << "lex error\n"; };
 
 lines: | lines line;
 line: function_proto ';' { 
+    if (auto typeE = typechecker($1)) {
+        llvm::errs() << "function block result: " << to_string(*typeE) << '\n';
+    } else {
+        llvm::errs() << "type error: " << typeE.takeError() << '\n';
+    }
     if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
         const auto& code = *codeE;
         code->print(llvm::errs());
@@ -99,6 +106,11 @@ line: function_proto ';' {
     }
 }
 | function_def { 
+    if (auto typeE = typechecker($1)) {
+        llvm::errs() << "function block result: " << to_string(*typeE) << '\n';
+    } else {
+        llvm::errs() << "type error: " << typeE.takeError() << '\n';
+    }
     if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
         const auto& code = *codeE;
         code->print(llvm::errs());

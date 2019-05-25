@@ -4,6 +4,7 @@
 #include "codegen.hpp"
 #include "operator.hpp"
 #include "parser.hpp"
+#include "sema.hpp"
 
 #include <iostream>
 
@@ -18,7 +19,8 @@ void yy::parser::error(const std::string& err) {
 int main(int argc, char** argv) {
     // std::ios::sync_with_stdio(false);
     codegen::CodeGenInstance instance;
-    yy::parser parser{instance};
+    sema::GetType typechecker;
+    yy::parser parser{instance, typechecker};
     parser.parse();
     return 0;
 }

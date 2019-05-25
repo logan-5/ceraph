@@ -40,7 +40,7 @@ struct Visitor {
     CodeGenInstance& instance;
 
     template <typename Rep, Type::ID Ty>
-    std::enable_if_t<Type::is_floating_v<Ty>, ReturnType> operator()(
+    std::enable_if_t<Type::is_floating(Ty), ReturnType> operator()(
           const ast::Literal<Rep, Ty>& literal) const {
         return make_floating_constant(Ty, llvm::APFloat{literal.rep});
     }

@@ -14,46 +14,20 @@ enum class Binary {
     Equality,
 };
 
+const char* to_string(Binary b);
 template <typename OStream>
 OStream& operator<<(OStream& ostr, Binary b) {
-    switch (b) {
-        case Binary::Plus:
-            ostr << "Plus";
-            break;
-        case Binary::Minus:
-            ostr << "Minus";
-            break;
-        case Binary::Multiply:
-            ostr << "Multiply";
-            break;
-        case Binary::Divide:
-            ostr << "Divide";
-            break;
-        case Binary::Modulo:
-            ostr << "Modulo";
-            break;
-
-        case Binary::Less:
-            ostr << "Less";
-            break;
-        case Binary::Equality:
-            ostr << "Equality";
-            break;
-    }
-    return ostr;
+    return ostr << to_string(b);
 }
 
 enum class Unary {
     Minus,
 };
 
+const char* to_string(Unary u);
 template <typename OStream>
 OStream& operator<<(OStream& ostr, Unary u) {
-    switch (u) {
-        case Unary::Minus:
-            ostr << "Unary Minus";
-    }
-    return ostr;
+    return ostr << to_string(u);
 }
 
 }  // namespace Operator
