@@ -402,53 +402,6 @@ ReturnType Visitor::operator()(const ast::While& while_) const {
     return nullptr;
 }
 
-ReturnType Visitor::operator()(const ast::CrappyForLoop& loop) const {
-    return err("todo");
-    // auto& builder = instance.impl->builder;
-    // auto& namedValues = instance.impl->namedValues;
-
-    // DECLARE_OR_RETURN(init, loop.init->visit(*this));
-
-    // auto* const func = builder.GetInsertBlock()->getParent();
-    // auto* const preLoopBlock = builder.GetInsertBlock();
-    // auto* const loopBlock =
-    //       llvm::BasicBlock::Create(instance.impl->context, "loop", func);
-
-    // builder.CreateBr(loopBlock);
-
-    // builder.SetInsertPoint(loopBlock);
-    // auto* const loopVar = builder.CreatePHI(init->getType(), 2, loop.induct);
-    // loopVar->addIncoming(init, preLoopBlock);
-
-    // auto* const oldVal = std::exchange(namedValues[loop.induct], loopVar);
-    // util::ScopeGuard restore{[&] { namedValues[loop.induct] = oldVal; }};
-
-    // DECLARE_OR_RETURN(cond, loop.cond->visit(*this));
-    // if (cond->getType() !=
-    //     Type::get_type(Type::ID::Bool, instance.impl->context)) {
-    //     return err("loop condition is not a boolean expression");
-    // }
-
-    // auto* const bodyBlock =
-    //       llvm::BasicBlock::Create(instance.impl->context, "body", func);
-    // auto* const endBlock =
-    //       llvm::BasicBlock::Create(instance.impl->context, "loopend", func);
-    // builder.CreateCondBr(cond, bodyBlock, endBlock);
-
-    // builder.SetInsertPoint(bodyBlock);
-    // DECLARE_OR_RETURN(body, loop.body->visit(*this));
-
-    // DECLARE_OR_RETURN(incr, loop.incr->visit(*this));
-    // auto* const endBodyBlock = builder.GetInsertBlock();
-    // loopVar->addIncoming(incr, endBodyBlock);
-    // builder.CreateBr(loopBlock);
-
-    // builder.SetInsertPoint(endBlock);
-    // auto* const end = llvm::cantFail(this->operator()(ast::IntLiteral{0}));
-
-    // return end;
-}
-
 ReturnType Visitor::operator()(const ast::NullStmt) const {
     return nullptr;
 }

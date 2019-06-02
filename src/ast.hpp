@@ -112,14 +112,6 @@ struct While {
     NodePtr body;
 };
 
-struct CrappyForLoop {
-    std::string induct;
-    NodePtr init;
-    NodePtr cond;
-    NodePtr incr;
-    NodePtr body;
-};
-
 using NullStmt = std::monostate;
 
 struct Block {
@@ -157,7 +149,6 @@ struct Node
                    FunctionCall,
                    IfElse,
                    While,
-                   CrappyForLoop,
                    Block,
                    Declaration,
                    Assignment,

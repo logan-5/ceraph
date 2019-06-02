@@ -140,10 +140,6 @@ auto GetType::operator()(const ast::While& while_) const -> ReturnType {
     return Type::ID::Void;
 }
 
-auto GetType::operator()(const ast::CrappyForLoop& loop) const -> ReturnType {
-    return err("nah");
-}
-
 auto GetType::operator()(const ast::NullStmt nullStmt) const -> ReturnType {
     return Type::ID::Void;
 }

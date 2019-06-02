@@ -56,8 +56,6 @@ struct GetType {
     ReturnType operator()(const ast::IfElse& ifElse) const;
     ReturnType operator()(const ast::While& while_) const;
 
-    ReturnType operator()(const ast::CrappyForLoop& loop) const;
-
     ReturnType operator()(const ast::NullStmt nullStmt) const;
     ReturnType operator()(const ast::Block& block) const;
 

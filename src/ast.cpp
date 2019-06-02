@@ -113,8 +113,6 @@ struct Dump {
         std::visit(next, *while_.body);
     }
 
-    void operator()(const CrappyForLoop&) const { ostr << "crappy 'for' loop"; }
-
     void operator()(NullStmt) const {
         indent();
         ostr << "[null statement]";

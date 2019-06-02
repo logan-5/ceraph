@@ -62,8 +62,6 @@ YY_DECL;
 
 %type <ast::While> while_loop;
 
-%type <ast::CrappyForLoop> crappy_for_loop;
-
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
@@ -192,7 +190,6 @@ equality_expression: relational_expression { $$ = std::move($1); }
 flow_expression: equality_expression { $$ = std::move($1); }
     | if_else { $$ = std::move($1); }
     | while_loop { $$ = std::move($1); }
-    | crappy_for_loop { $$ = std::move($1); }
     ;
 
 expression
@@ -229,9 +226,6 @@ if_else: IF expression[cond] block[then] { $$ = ast::IfElse{ptr($cond), ptr($the
 while_loop: WHILE expression[cond] block[body] { $$ = ast::While{nullptr, ptr($cond), ptr($body)}; }
     | WHILE statement[init] expression[cond] block[body] { $$ = ast::While{ptr($init), ptr($cond), ptr($body)}; }
     ;
-
-crappy_for_loop: 
-    FOR IDENTIFIER[ind] '=' expression[init] ',' expression[cond] ',' expression[incr] ':' expression[body] { $$ = ast::CrappyForLoop{std::move($ind), ptr($init), ptr($cond), ptr($incr), ptr($body)}; } ;
 
 %%
 
