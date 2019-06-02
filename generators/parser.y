@@ -60,6 +60,8 @@ YY_DECL;
 
 %type <ast::Node> if_else;
 
+%type <ast::While> while_loop;
+
 %type <ast::CrappyForLoop> crappy_for_loop;
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
@@ -98,7 +100,7 @@ line: function_proto ';' {
     if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
         const auto& code = *codeE;
         code->print(llvm::outs());
-        llvm::errs() << '\n';
+        // llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
         llvm::errs() << "error: " << codeE.takeError() << '\n';
@@ -114,7 +116,7 @@ line: function_proto ';' {
     if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
         const auto& code = *codeE;
         code->print(llvm::outs());
-        llvm::errs() << '\n';
+        // llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
         llvm::errs() << "error: " << codeE.takeError() << '\n';
@@ -189,6 +191,7 @@ equality_expression: relational_expression { $$ = std::move($1); }
 
 flow_expression: equality_expression { $$ = std::move($1); }
     | if_else { $$ = std::move($1); }
+    | while_loop { $$ = std::move($1); }
     | crappy_for_loop { $$ = std::move($1); }
     ;
 
@@ -221,6 +224,10 @@ type_or_void: NONVOID_TYPE { $$ = $1; } | VOID { $$ = Type::ID::Void; };
 
 if_else: IF expression[cond] block[then] { $$ = ast::IfElse{ptr($cond), ptr($then)}; }
     | IF expression[cond] block[then] ELSE block[else_] { $$ = ast::IfElse{ptr($cond), ptr($then), ptr($else_)}; }
+    ;
+
+while_loop: WHILE expression[cond] block[body] { $$ = ast::While{nullptr, ptr($cond), ptr($body)}; }
+    | WHILE statement[init] expression[cond] block[body] { $$ = ast::While{ptr($init), ptr($cond), ptr($body)}; }
     ;
 
 crappy_for_loop: 

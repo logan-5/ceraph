@@ -106,6 +106,12 @@ struct IfElse {
     NodePtr elseBranch;
 };
 
+struct While {
+    NodePtr init;
+    NodePtr cond;
+    NodePtr body;
+};
+
 struct CrappyForLoop {
     std::string induct;
     NodePtr init;
@@ -150,6 +156,7 @@ struct Node
                    FunctionDef,
                    FunctionCall,
                    IfElse,
+                   While,
                    CrappyForLoop,
                    Block,
                    Declaration,

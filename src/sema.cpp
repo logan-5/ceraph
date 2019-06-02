@@ -122,6 +122,24 @@ auto GetType::operator()(const ast::IfElse& ifElse) const -> ReturnType {
                "mismatched types in if/else branches");
 }
 
+auto GetType::operator()(const ast::While& while_) const -> ReturnType {
+    symbols->pushScope();
+    util::ScopeGuard pop{[&] { symbols->popScope(); }};
+    if (while_.init) {
+        DECLARE_OR_RETURN(init, while_.init->visit(*this));
+        (void)init;
+    }
+    DECLARE_OR_RETURN(cond, while_.cond->visit(*this));
+    if (!Type::matched(cond, Type::ID::Bool).has_value()) {
+        return err(
+              Twine("'while' condition not a boolean expression, found '") +
+              to_string(cond) + "' instead");
+    }
+    DECLARE_OR_RETURN(body, while_.body->visit(*this));
+    (void)body;
+    return Type::ID::Void;
+}
+
 auto GetType::operator()(const ast::CrappyForLoop& loop) const -> ReturnType {
     return err("nah");
 }

@@ -64,6 +64,7 @@ struct Visitor {
     ReturnType operator()(const ast::FunctionCall& call) const;
 
     ReturnType operator()(const ast::IfElse& ifElse) const;
+    ReturnType operator()(const ast::While& while_) const;
 
     ReturnType operator()(const ast::CrappyForLoop& loop) const;
 

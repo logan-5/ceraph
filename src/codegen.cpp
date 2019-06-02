@@ -363,6 +363,45 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
                            mergeBlock, builder);
 }
 
+ReturnType Visitor::operator()(const ast::While& while_) const {
+    auto& builder = instance.impl->builder;
+
+    instance.impl->symtable.pushScope();
+    util::ScopeGuard pop{[&] { instance.impl->symtable.popScope(); }};
+
+    auto* const func = builder.GetInsertBlock()->getParent();
+    auto* const loopInitBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "loop_init", func);
+    builder.CreateBr(loopInitBlock);
+    builder.SetInsertPoint(loopInitBlock);
+    if (while_.init) {
+        DECLARE_OR_RETURN(init, while_.init->visit(*this));
+        (void)init;
+    }
+
+    auto* const loopCondBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "loop_cond");
+    auto* const loopBodyBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "loop_body");
+    auto* const loopMergeBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "loop_merge");
+    func->getBasicBlockList().push_back(loopCondBlock);
+    builder.CreateBr(loopCondBlock);
+    builder.SetInsertPoint(loopCondBlock);
+    DECLARE_OR_RETURN(cond, while_.cond->visit(*this));
+    builder.CreateCondBr(cond, loopBodyBlock, loopMergeBlock);
+
+    func->getBasicBlockList().push_back(loopBodyBlock);
+    builder.SetInsertPoint(loopBodyBlock);
+    DECLARE_OR_RETURN(body, while_.body->visit(*this));
+    builder.CreateBr(loopCondBlock);
+
+    func->getBasicBlockList().push_back(loopMergeBlock);
+    builder.SetInsertPoint(loopMergeBlock);
+
+    return nullptr;
+}
+
 ReturnType Visitor::operator()(const ast::CrappyForLoop& loop) const {
     return err("todo");
     // auto& builder = instance.impl->builder;

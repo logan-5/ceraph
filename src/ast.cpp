@@ -95,6 +95,24 @@ struct Dump {
         }
     }
 
+    void operator()(const While& while_) const {
+        indent();
+        ostr << "[while]";
+        Dump next{indentLevel + 1, ostr};
+        if (while_.init) {
+            ostr << "init:\n";
+            std::visit(next, *while_.init);
+            ostr << '\n';
+            indent();
+        }
+        ostr << "condition:\n";
+        std::visit(next, *while_.cond);
+        ostr << '\n';
+        indent();
+        ostr << "body:\n";
+        std::visit(next, *while_.body);
+    }
+
     void operator()(const CrappyForLoop&) const { ostr << "crappy 'for' loop"; }
 
     void operator()(NullStmt) const {
