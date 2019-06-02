@@ -281,8 +281,9 @@ ReturnType setUpMergeBlock(llvm::Value* const thenValue,
                            llvm::BasicBlock* const mergeBlock,
                            IRBuilder<>& builder) {
     const bool thenReturnsOrBreaks = breaksOrReturns(thenBlock);
-    const bool elseReturnsOrBreaks = breaksOrReturns(elseBlock);
-    if (thenReturnsOrBreaks && !elseReturnsOrBreaks) {
+    const bool hasElseValue = elseValue != nullptr;
+    const bool elseReturnsOrBreaks = hasElseValue && breaksOrReturns(elseBlock);
+    if (thenReturnsOrBreaks && (hasElseValue && !elseReturnsOrBreaks)) {
         builder.SetInsertPoint(elseBlock);
         builder.CreateBr(mergeBlock);
         builder.SetInsertPoint(mergeBlock);
@@ -294,6 +295,10 @@ ReturnType setUpMergeBlock(llvm::Value* const thenValue,
     if (!thenReturnsOrBreaks && elseReturnsOrBreaks) {
         builder.SetInsertPoint(thenBlock);
         builder.CreateBr(mergeBlock);
+        if (!hasElseValue && !elseBlock->getTerminator()) {
+            builder.SetInsertPoint(elseBlock);
+            builder.CreateBr(mergeBlock);
+        }
         builder.SetInsertPoint(mergeBlock);
         auto* const phi =
               builder.CreatePHI(thenValue->getType(), 1, "dummyphi");
@@ -319,6 +324,10 @@ ReturnType setUpMergeBlock(llvm::Value* const thenValue,
         return phi;
     }
 
+    if (!hasElseValue && !elseBlock->getTerminator()) {
+        builder.SetInsertPoint(elseBlock);
+        builder.CreateBr(mergeBlock);
+    }
     builder.SetInsertPoint(mergeBlock);
     return nullptr;
 }
