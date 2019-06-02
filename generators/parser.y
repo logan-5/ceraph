@@ -91,13 +91,13 @@ err: error | LEX_ERROR { std::cerr << "lex error\n"; };
 lines: | lines line;
 line: function_proto ';' { 
     if (auto typeE = typechecker($1)) {
-        llvm::errs() << "function block result: " << to_string(*typeE) << '\n';
+        // llvm::errs() << "function block result: " << to_string(*typeE) << '\n';
     } else {
         llvm::errs() << "type error: " << typeE.takeError() << '\n';
     }
     if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
         const auto& code = *codeE;
-        code->print(llvm::errs());
+        code->print(llvm::outs());
         llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
@@ -107,13 +107,13 @@ line: function_proto ';' {
 }
 | function_def { 
     if (auto typeE = typechecker($1)) {
-        llvm::errs() << "function block result: " << to_string(*typeE) << '\n';
+        // llvm::errs() << "function block result: " << to_string(*typeE) << '\n';
     } else {
         llvm::errs() << "type error: " << typeE.takeError() << '\n';
     }
     if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
         const auto& code = *codeE;
-        code->print(llvm::errs());
+        code->print(llvm::outs());
         llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {

@@ -430,7 +430,16 @@ ReturnType Visitor::operator()(const ast::Block& block) const {
 
 ReturnType Visitor::operator()(const ast::Declaration& decl) const {
     DECLARE_OR_RETURN(init, decl.init->visit(*this));
-    if (!init || init->getType()->isVoidTy()) {
+    if (!init) {
+        // to have typechecked and still gotten this far, the initializer must
+        // have been of type Never. so this declaration will never actually
+        // happen
+        auto* const type =
+              Type::get_type(decl.type.has_value() ? *decl.type : Type::ID::Int,
+                             instance.impl->context);
+        return llvm::UndefValue::get(type);
+
+    } else if (init->getType()->isVoidTy()) {
         return err("variable initializer cannot have void type");
     }
     if (decl.type.has_value() &&
@@ -450,15 +459,22 @@ ReturnType Visitor::operator()(const ast::Declaration& decl) const {
 }
 
 ReturnType Visitor::operator()(const ast::Assignment& assign) const {
-    DECLARE_OR_RETURN_NOVOID(rhs, assign.rhs->visit(*this));
-    auto& builder = instance.impl->builder;
     auto& symtable = instance.impl->symtable;
-
     auto* const alloca = symtable.get(assign.dest);
     if (!alloca) {
         return err(llvm::Twine("assignment to unknown identifier '") +
                    assign.dest + "'");
     }
+
+    DECLARE_OR_RETURN(rhs, assign.rhs->visit(*this));
+    if (!rhs) {
+        // to have typechecked and still gotten this far, the rhs must
+        // have been of type Never. so this assignment will never actually
+        // happen
+        return llvm::UndefValue::get(alloca->getAllocatedType());
+    }
+    auto& builder = instance.impl->builder;
+
     if (alloca->getAllocatedType() != rhs->getType()) {
         return err("cannot assign new value, type mismatch");
     }
