@@ -3,6 +3,8 @@
 
 #include "ast.hpp"
 #include "operator.hpp"
+#include "parser_types.hpp"
+
 #include "parser.hpp"
 
 #include <iostream>
@@ -67,7 +69,14 @@ IS			(u|U|l|L)*
 "void"          { count(); return token::VOID; }
 "while"			{ count(); return token::WHILE; }
 
-{L}({L}|{D})*		{ count(); if (const auto type = Type::from_name(yytext)) { yylval->build(*type); return token::NONVOID_TYPE; } else { yylval->build(std::string{yytext}); return check_type(); } }
+{L}({L}|{D})*		{ 
+        count(); 
+        if (const auto type = context.getType(yytext)) { 
+            yylval->build(*type); return token::NONVOID_TYPE; 
+        } else { 
+            yylval->build(std::string{yytext}); return check_type();
+        }
+    }
 
 0[xX]{H}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval->build<ast::Node>(ast::IntLiteral(*i)); return token::CONSTANT; } return token::LEX_ERROR; }
 0{D}+{IS}?		{ count(); if (auto i = parse_int<int>(yytext)) { yylval->build<ast::Node>(ast::IntLiteral(*i)); return token::CONSTANT; } return token::LEX_ERROR; }

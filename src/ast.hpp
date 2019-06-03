@@ -175,13 +175,21 @@ struct Node
     }
 };
 
+struct StructDef {
+    std::string name;
+    using Fields = llvm::StringMap<Type::ID>;
+    Fields fields;
+};
+
 std::ostream& operator<<(std::ostream&, const ast::Node&);
+std::ostream& operator<<(std::ostream&, const ast::StructDef&);
 }  // namespace ast
 namespace llvm {
 class raw_ostream;
 }
 namespace ast {
 llvm::raw_ostream& operator<<(llvm::raw_ostream&, const ast::Node&);
+llvm::raw_ostream& operator<<(llvm::raw_ostream&, const ast::StructDef&);
 
 }  // namespace ast
 

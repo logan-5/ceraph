@@ -168,6 +168,16 @@ struct Dump {
         ostr << '\n';
         std::visit(next, *o.rhs);
     }
+
+    void operator()(const StructDef& d) const {
+        indent();
+        ostr << "struct def: " << d.name << '\n';
+        for (auto& field : d.fields) {
+            indent();
+            ostr << "\t[field]: " << field.getKey().str()
+                 << ", type: " << field.getValue() << '\n';
+        }
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;
@@ -181,6 +191,17 @@ std::ostream& operator<<(std::ostream& ostr, const ast::Node& node) {
 llvm::raw_ostream& operator<<(llvm::raw_ostream& ostr, const ast::Node& node) {
     Dump dump{0, ostr};
     node.visit(dump);
+    return ostr;
+}
+
+std::ostream& operator<<(std::ostream& ostr, const ast::StructDef& sd) {
+    Dump{0, ostr}(sd);
+    return ostr;
+}
+
+llvm::raw_ostream& operator<<(llvm::raw_ostream& ostr,
+                              const ast::StructDef& sd) {
+    Dump{0, ostr}(sd);
     return ostr;
 }
 

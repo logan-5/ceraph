@@ -20,6 +20,9 @@ struct CodeGenInstance {
     ~CodeGenInstance();
 
     bool verify(llvm::raw_ostream&) const;
+    void dump(llvm::raw_ostream&) const;
+
+    const Type::UserDefinedTypeTable& getTypeTable() const;
 
     struct Impl;
     std::unique_ptr<Impl> impl;
@@ -76,6 +79,8 @@ struct Visitor {
     ReturnType operator()(const ast::Assignment& assign) const;
 
     ReturnType operator()(const ast::Return& ret) const;
+
+    llvm::Error operator()(const ast::StructDef& sd) const;
 
    private:
     llvm::Value* make_floating_constant(Type::ID type,

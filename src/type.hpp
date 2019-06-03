@@ -4,18 +4,23 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Type.h"
+#include "llvm/Support/Error.h"
 
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace llvm {
 class LLVMContext;
-}
+}  // namespace llvm
 
 namespace ast {
 class FunctionProto;
 }
 
 namespace Type {
+
+class UserDefinedTypeTable;
 
 enum class ID {
     Never,
@@ -26,11 +31,13 @@ enum class ID {
     Double,
     StringLiteral,
     Void,
+
+    UserDefinedMin,
 };
 
 std::optional<ID> from_name(llvm::StringRef name);
 
-const char* to_string(ID ty);
+std::string to_string(ID ty, const UserDefinedTypeTable* = nullptr);
 template <typename OStream>
 OStream& operator<<(OStream& ostr, ID ty) {
     return ostr << to_string(ty);
@@ -48,6 +55,10 @@ inline constexpr bool is_arithmetic(ID ty) {
     return is_floating(ty) || (is_integer(ty) && ty != ID::Bool);
 }
 
+inline constexpr bool is_user_defined(ID ty) {
+    return ty >= ID::UserDefinedMin;
+}
+
 template <ID Ty>
 struct num_bits;
 template <>
@@ -61,10 +72,13 @@ struct is_signed<ID::Int> : std::true_type {};
 template <>
 struct is_signed<ID::Bool> : std::false_type {};
 
-llvm::Type* get_type(ID theType, llvm::LLVMContext& context);
+llvm::Type* get_type(ID theType,
+                     llvm::LLVMContext& context,
+                     const UserDefinedTypeTable& utt);
 
 llvm::FunctionType* get_type(const ast::FunctionProto& proto,
-                             llvm::LLVMContext& context);
+                             llvm::LLVMContext& context,
+                             const UserDefinedTypeTable& utt);
 
 inline bool is_void(ID t) {
     return t == ID::Void;
@@ -79,6 +93,36 @@ inline std::optional<ID> matched(ID a, ID b) {
         return a;
     return std::nullopt;
 }
+
+class UserDefinedTypeTable {
+   public:
+    UserDefinedTypeTable(llvm::LLVMContext& c) : context{c} {}
+    struct DuplicateTypeError : llvm::ErrorInfo<DuplicateTypeError> {
+        static char ID;
+        std::string description;
+
+        DuplicateTypeError(const llvm::Twine& desc) : description{desc.str()} {}
+        void log(llvm::raw_ostream& os) const override { os << description; }
+        std::error_code convertToErrorCode() const override { return {}; }
+    };
+    struct TypeRecord {
+        Type::ID typeId;
+        llvm::StructType* type;
+    };
+
+    llvm::Expected<TypeRecord> createNewType(llvm::StringRef name);
+
+    std::optional<TypeRecord> get(llvm::StringRef name) const;
+    llvm::StructType* get(Type::ID id_) const;
+    std::optional<std::reference_wrapper<const std::string>> get_name(
+          Type::ID id_) const;
+
+   private:
+    std::reference_wrapper<llvm::LLVMContext> context;
+
+    llvm::StringMap<TypeRecord> ids;
+    std::vector<std::string> names;
+};
 
 }  // namespace Type
 

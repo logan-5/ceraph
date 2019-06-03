@@ -1,6 +1,7 @@
 #include "codegen.hpp"
 
 #include "scope.hpp"
+#include "type.hpp"
 #include "util.hpp"
 
 #include "llvm/ADT/SmallVector.h"
@@ -53,6 +54,7 @@ struct CodeGenInstance::Impl {
     IRBuilder<> builder{context};
     std::unique_ptr<Module> module{std::make_unique<Module>("module", context)};
     scope::SymbolTable<llvm::AllocaInst*> symtable;
+    Type::UserDefinedTypeTable typeTable{context};
 
     llvm::Function* getCurrentFunction() const {
         return builder.GetInsertBlock()->getParent();
@@ -65,8 +67,15 @@ struct CodeGenInstance::Impl {
 CodeGenInstance::CodeGenInstance() : impl{std::make_unique<Impl>()} {}
 CodeGenInstance::~CodeGenInstance() = default;
 
+const Type::UserDefinedTypeTable& CodeGenInstance::getTypeTable() const {
+    return impl->typeTable;
+}
+
 bool CodeGenInstance::verify(llvm::raw_ostream& ostr) const {
     return llvm::verifyModule(*impl->module, &ostr);
+}
+void CodeGenInstance::dump(llvm::raw_ostream& ostr) const {
+    impl->module->print(ostr, nullptr);
 }
 
 ReturnType Visitor::operator()(const ast::StringLiteral& str) const {
@@ -174,7 +183,8 @@ ReturnType Visitor::operator()(const ast::Identifier& ident) const {
 }
 
 ReturnType Visitor::operator()(const ast::FunctionProto& proto) const {
-    auto* const t = Type::get_type(proto, instance.impl->context);
+    auto* const t = Type::get_type(proto, instance.impl->context,
+                                   instance.impl->typeTable);
 
     if (auto* const f = instance.impl->module->getFunction(proto.name);
         f && (f->getFunctionType() != t)) {
@@ -208,8 +218,9 @@ ReturnType Visitor::operator()(const ast::FunctionDef& func) const {
     if (!f->empty()) {
         return err("function '" + func.proto.name + "' redefined");
     }
-    if (f->getFunctionType() !=
-        Type::get_type(func.proto, instance.impl->context)) {
+    if (f->getFunctionType() != Type::get_type(func.proto,
+                                               instance.impl->context,
+                                               instance.impl->typeTable)) {
         return err("function '" + func.proto.name +
                    "' defined with a different signature than it was first "
                    "declared with");
@@ -340,8 +351,9 @@ ReturnType setUpMergeBlock(llvm::Value* const thenValue,
 
 ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
     DECLARE_OR_RETURN_NOVOID(cond, ifElse.cond->visit(*this));
-    if (cond->getType() !=
-        Type::get_type(Type::ID::Bool, instance.impl->context)) {
+    if (cond->getType() != Type::get_type(Type::ID::Bool,
+                                          instance.impl->context,
+                                          instance.impl->typeTable)) {
         return err("'if' condition is not a boolean expression");
     }
 
@@ -448,7 +460,9 @@ ReturnType Visitor::operator()(const ast::LogicalAnd& a) const {
     func->getBasicBlockList().push_back(mergeBlock);
     builder.SetInsertPoint(mergeBlock);
     auto* const phi = builder.CreatePHI(
-          Type::get_type(Type::ID::Bool, instance.impl->context), 2, "and_phi");
+          Type::get_type(Type::ID::Bool, instance.impl->context,
+                         instance.impl->typeTable),
+          2, "and_phi");
     phi->addIncoming(branchCond, lhsEnd);
     phi->addIncoming(
           rhs ?: llvm::cantFail(this->operator()(ast::BoolLiteral{true})),
@@ -487,7 +501,9 @@ ReturnType Visitor::operator()(const ast::LogicalOr& o) const {
     func->getBasicBlockList().push_back(mergeBlock);
     builder.SetInsertPoint(mergeBlock);
     auto* const phi = builder.CreatePHI(
-          Type::get_type(Type::ID::Bool, instance.impl->context), 2, "or_phi");
+          Type::get_type(Type::ID::Bool, instance.impl->context,
+                         instance.impl->typeTable),
+          2, "or_phi");
     phi->addIncoming(branchCond, lhsEnd);
     phi->addIncoming(
           rhs ?: llvm::cantFail(this->operator()(ast::BoolLiteral{true})),
@@ -521,14 +537,15 @@ ReturnType Visitor::operator()(const ast::Declaration& decl) const {
         // happen
         auto* const type =
               Type::get_type(decl.type.has_value() ? *decl.type : Type::ID::Int,
-                             instance.impl->context);
+                             instance.impl->context, instance.impl->typeTable);
         return llvm::UndefValue::get(type);
 
     } else if (init->getType()->isVoidTy()) {
         return err("variable initializer cannot have void type");
     }
     if (decl.type.has_value() &&
-        Type::get_type(*decl.type, instance.impl->context) != init->getType()) {
+        Type::get_type(*decl.type, instance.impl->context,
+                       instance.impl->typeTable) != init->getType()) {
         return err(
               "type of initializer does not match variable's specified type");
     }
@@ -585,6 +602,26 @@ ReturnType Visitor::operator()(const ast::Return& ret) const {
 
 /////
 
+llvm::Error Visitor::operator()(const ast::StructDef& sd) const {
+    auto result = instance.impl->typeTable.createNewType(sd.name);
+    if (auto err = result.takeError()) {
+        return err;
+    }
+    std::vector<llvm::Type*> fields;
+    fields.reserve(sd.fields.size());
+    for (auto& field : sd.fields) {
+        auto* const type =
+              Type::get_type(field.getValue(), instance.impl->context,
+                             instance.impl->typeTable);
+        assert(type);
+        fields.push_back(type);
+    }
+    result->type->setBody(fields, false);
+    return llvm::Error::success();
+}
+
+/////
+
 llvm::AllocaInst* Visitor::createAllocaInEntryBlock(
       llvm::Type* type,
       const llvm::Twine& name) const {
@@ -596,14 +633,16 @@ llvm::AllocaInst* Visitor::createAllocaInEntryBlock(
 
 Value* Visitor::make_floating_constant(Type::ID type,
                                        const llvm::APFloat& value) const {
-    auto* const t = Type::get_type(type, instance.impl->context);
+    auto* const t = Type::get_type(type, instance.impl->context,
+                                   instance.impl->typeTable);
     assert(t);
     assert(t->isFloatingPointTy());
     return llvm::ConstantFP::get(t, value);
 }
 Value* Visitor::make_integer_constant(Type::ID type,
                                       const llvm::APInt& value) const {
-    auto* const t = Type::get_type(type, instance.impl->context);
+    auto* const t = Type::get_type(type, instance.impl->context,
+                                   instance.impl->typeTable);
     assert(t);
     assert(t->isIntegerTy());
     return llvm::ConstantInt::get(t, value);

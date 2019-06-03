@@ -3,8 +3,10 @@
 #include "ast.hpp"
 #include "codegen.hpp"
 #include "operator.hpp"
-#include "parser.hpp"
+#include "parser_types.hpp"
 #include "sema.hpp"
+
+#include "parser.hpp"
 
 #include <iostream>
 

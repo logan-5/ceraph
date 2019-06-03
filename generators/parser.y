@@ -5,6 +5,8 @@
 #include "codegen.hpp"
 #include "operator.hpp"
 #include "sema.hpp"
+#include "parser_types.hpp"
+
 #include "parser.hpp"
 
 #include "llvm/Support/raw_ostream.h"
@@ -32,6 +34,7 @@ YY_DECL;
 %define parse.error verbose
 %parse-param {codegen::CodeGenInstance& codegen}
 %parse-param {sema::GetType& typechecker}
+%lex-param {const LexerContext& codegen}
 
 %type <Type::ID> NONVOID_TYPE type_or_void
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression postfix_expression
@@ -61,6 +64,10 @@ YY_DECL;
 %type <ast::Node> if_else;
 
 %type <ast::While> while_loop;
+
+%type <ast::StructDef> struct_def;
+%type <ast::StructDef::Fields> struct_fields;
+%type <StructField> struct_field;
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
@@ -120,6 +127,14 @@ line: function_proto ';' {
         llvm::errs() << "error: " << codeE.takeError() << '\n';
         llvm::errs() << "no code generated\n";
     }
+}
+| struct_def {
+    llvm::errs() << $1;
+    if (codegen::Visitor{codegen}($1)) {
+        llvm::errs() << "error";
+    }
+    assert(!codegen.verify(llvm::errs()));
+    codegen.dump(llvm::errs());
 };
 
 statement
@@ -235,6 +250,22 @@ while_loop: WHILE expression[cond] block[body] { $$ = ast::While{nullptr, ptr($c
     | WHILE statement[init] expression[cond] block[body] { $$ = ast::While{ptr($init), ptr($cond), ptr($body)}; }
     ;
 
+struct_def: STRUCT IDENTIFIER[name] '{' struct_fields[fields] '}' { $$ = ast::StructDef{std::move($name), std::move($fields)}; }
+    | STRUCT IDENTIFIER[name] '{' '}' { $$ = ast::StructDef{std::move($name), {}}; }
+    ;
+
+struct_fields: struct_field { $$ = {std::pair{std::move($1.name), $1.type}}; }
+    | struct_fields struct_field { 
+        if ($1.find($2.name) != $1.end()) { 
+            llvm::errs() << "duplicate struct member '" << $2.name << "'"; YYERROR;
+        }
+        $1.insert(std::pair{std::move($2.name), $2.type});
+        $$ = std::move($1);
+    }
+    ;
+
+struct_field: NONVOID_TYPE IDENTIFIER ';' { $$ = StructField{std::move($2), $1}; }
+
 %%
 
 template <Operator::Unary Op, typename Operand>
@@ -244,4 +275,15 @@ ast::UnaryExpr make_unary(Operand&& operand) {
 template <Operator::Binary Op, typename Lhs, typename Rhs>
 ast::BinaryExpr make_binary(Lhs&& lhs, Rhs&& rhs) {
     return ast::BinaryExpr{Op, ptr(lhs), ptr(rhs)};
+}
+
+std::optional<Type::ID> LexerContext::getType(llvm::StringRef name) const {
+    if (const auto type = Type::from_name(name)) {
+        return *type;
+    }
+    if (const auto record = this->instance.get().getTypeTable().get(name); 
+        record.has_value()) {
+        return record->typeId;
+    }
+    return std::nullopt;
 }
