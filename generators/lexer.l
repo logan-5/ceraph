@@ -206,7 +206,7 @@ double to_float<double>(const char* start, char** end) {
     return std::strtod(start, end);
 }
 template<>
-long double to_float<long double>(const char* start, char** end) {
+[[maybe_unused]] long double to_float<long double>(const char* start, char** end) {
     return std::strtold(start, end);
 }
 }

@@ -369,6 +369,7 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
           llvm::BasicBlock::Create(instance.impl->context, "merge");
 
     auto* const branchInst = builder.CreateCondBr(cond, thenBlock, elseBlock);
+    (void)branchInst;
     builder.SetInsertPoint(thenBlock);
     DECLARE_OR_RETURN(thenBranch, ifElse.thenBranch->visit(*this));
     auto* const thenBlockEnd = builder.GetInsertBlock();
@@ -420,6 +421,7 @@ ReturnType Visitor::operator()(const ast::While& while_) const {
     func->getBasicBlockList().push_back(loopBodyBlock);
     builder.SetInsertPoint(loopBodyBlock);
     DECLARE_OR_RETURN(body, while_.body->visit(*this));
+    (void)body;
     builder.CreateBr(loopCondBlock);
 
     func->getBasicBlockList().push_back(loopMergeBlock);
@@ -465,7 +467,7 @@ ReturnType Visitor::operator()(const ast::LogicalAnd& a) const {
           2, "and_phi");
     phi->addIncoming(branchCond, lhsEnd);
     phi->addIncoming(
-          rhs ?: llvm::cantFail(this->operator()(ast::BoolLiteral{true})),
+          rhs ? rhs : llvm::cantFail(this->operator()(ast::BoolLiteral{true})),
           rhsEnd);
     return phi;
 }
@@ -506,7 +508,7 @@ ReturnType Visitor::operator()(const ast::LogicalOr& o) const {
           2, "or_phi");
     phi->addIncoming(branchCond, lhsEnd);
     phi->addIncoming(
-          rhs ?: llvm::cantFail(this->operator()(ast::BoolLiteral{true})),
+          rhs ? rhs : llvm::cantFail(this->operator()(ast::BoolLiteral{true})),
           rhsEnd);
     return phi;
 }

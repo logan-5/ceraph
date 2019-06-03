@@ -9,6 +9,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DYY_NULLPTR=nullptr")
 
 project(ceraph)
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    add_compile_options(-Wall -Wextra -Werror -Wno-unused-parameter -pedantic)
+endif()
+if (MSVC)
+    add_compile_options(/W4)
+endif()
+
 set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(GENERATOR_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generators)
 

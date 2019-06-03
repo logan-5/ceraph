@@ -18,7 +18,7 @@ void yy::parser::error(const std::string& err) {
     std::cerr << err;
 }
 
-int main(int argc, char** argv) {
+int main(int, char**) {
     // std::ios::sync_with_stdio(false);
     codegen::CodeGenInstance instance;
     sema::GetType typechecker;

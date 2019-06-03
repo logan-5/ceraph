@@ -41,7 +41,7 @@ struct GetType {
     using ReturnType = llvm::Expected<Type::ID>;
 
     template <typename Rep, Type::ID Ty>
-    ReturnType operator()(const ast::Literal<Rep, Ty>& literal) const {
+    ReturnType operator()(const ast::Literal<Rep, Ty>&) const {
         return Ty;
     }
 

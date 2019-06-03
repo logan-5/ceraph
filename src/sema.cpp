@@ -103,6 +103,7 @@ auto GetType::operator()(const ast::FunctionDef& func) const -> ReturnType {
     }
 
     DECLARE_OR_RETURN(body, func.body->visit(*this));
+    (void)body;
     return Type::ID::Never;
 }
 auto GetType::operator()(const ast::FunctionCall& call) const -> ReturnType {
@@ -179,7 +180,7 @@ auto GetType::operator()(const ast::LogicalOr& o) const -> ReturnType {
     return Type::ID::Bool;
 }
 
-auto GetType::operator()(const ast::NullStmt nullStmt) const -> ReturnType {
+auto GetType::operator()(const ast::NullStmt) const -> ReturnType {
     return Type::ID::Void;
 }
 auto GetType::operator()(const ast::Block& block) const -> ReturnType {
@@ -220,7 +221,7 @@ auto GetType::operator()(const ast::Assignment& assign) const -> ReturnType {
                "' and '" + to_string(rhs) + "'");
 }
 
-auto GetType::operator()(const ast::Return& ret) const -> ReturnType {
+auto GetType::operator()(const ast::Return&) const -> ReturnType {
     return Type::ID::Never;
 }
 }  // namespace sema

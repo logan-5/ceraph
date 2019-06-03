@@ -15,7 +15,7 @@ class LLVMContext;
 }  // namespace llvm
 
 namespace ast {
-class FunctionProto;
+struct FunctionProto;
 }
 
 namespace Type {
