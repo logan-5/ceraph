@@ -35,7 +35,7 @@ YY_DECL;
 
 %type <Type::ID> NONVOID_TYPE type_or_void
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression postfix_expression
-%type <ast::Node> equality_expression relational_expression flow_expression
+%type <ast::Node> equality_expression relational_expression and_expression or_expression flow_expression
 %type <ast::Node> CONSTANT STRING_LITERAL
 %type <std::string> IDENTIFIER
 
@@ -64,7 +64,7 @@ YY_DECL;
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
-%token AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
+%token LOGICAL_AND LOGICAL_OR MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
 %token XOR_ASSIGN OR_ASSIGN NONVOID_TYPE
 %token LEX_ERROR
@@ -187,7 +187,15 @@ equality_expression: relational_expression { $$ = std::move($1); }
     | equality_expression EQ_OP relational_expression { $$ = make_binary<Operator::Binary::Equality>($1, $3); }
     ;
 
-flow_expression: equality_expression { $$ = std::move($1); }
+and_expression: equality_expression { $$ = std::move($1); }
+    | and_expression LOGICAL_AND equality_expression { $$ = ast::LogicalAnd{ptr($1), ptr($3)}; }
+    ;
+
+or_expression: and_expression { $$ = std::move($1); }
+    | or_expression LOGICAL_OR and_expression { $$ = ast::LogicalOr{ptr($1), ptr($3)}; }
+    ;
+
+flow_expression: or_expression { $$ = std::move($1); }
     | if_else { $$ = std::move($1); }
     | while_loop { $$ = std::move($1); }
     ;

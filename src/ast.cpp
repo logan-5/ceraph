@@ -151,6 +151,23 @@ struct Dump {
             std::visit(next, *ret.value);
         }
     }
+
+    void operator()(const LogicalAnd& a) const {
+        indent();
+        ostr << "[and]:\n";
+        Dump next{indentLevel + 1, ostr};
+        std::visit(next, *a.lhs);
+        ostr << '\n';
+        std::visit(next, *a.rhs);
+    }
+    void operator()(const LogicalOr& o) const {
+        indent();
+        ostr << "[or]:\n";
+        Dump next{indentLevel + 1, ostr};
+        std::visit(next, *o.lhs);
+        ostr << '\n';
+        std::visit(next, *o.rhs);
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

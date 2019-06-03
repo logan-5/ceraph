@@ -134,6 +134,14 @@ struct Return {
     NodePtr value;
 };
 
+struct LogicalAnd {
+    NodePtr lhs, rhs;
+};
+
+struct LogicalOr {
+    NodePtr lhs, rhs;
+};
+
 struct Node
     : std::variant<NullStmt,
                    BoolLiteral,
@@ -149,6 +157,8 @@ struct Node
                    FunctionCall,
                    IfElse,
                    While,
+                   LogicalAnd,
+                   LogicalOr,
                    Block,
                    Declaration,
                    Assignment,

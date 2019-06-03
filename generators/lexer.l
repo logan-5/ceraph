@@ -32,6 +32,7 @@ IS			(u|U|l|L)*
 %%
 "/*"			{ comment(); }
 
+"and"           { count(); return token::LOGICAL_AND; }
 "auto"			{ count(); return token::AUTO; }
 "break"			{ count(); return token::BREAK; }
 "case"			{ count(); return token::CASE; }
@@ -49,6 +50,7 @@ IS			(u|U|l|L)*
 "if"			{ count(); return token::IF; }
 "let"           { count(); return token::LET; }
 "long"			{ count(); return token::LONG; }
+"or"            { count(); return token::LOGICAL_OR; }
 "register"		{ count(); return token::REGISTER; }
 "return"		{ count(); return token::RETURN; }
 "short"			{ count(); return token::SHORT; }
@@ -100,8 +102,8 @@ L?\"(\\.|[^\\"])*\"	{ count(); yylval->build<ast::Node>(ast::StringLiteral(yytex
 "++"			{ count(); return token::INC_OP; }
 "--"			{ count(); return token::DEC_OP; }
 "->"			{ count(); return token::PTR_OP; }
-"&&"			{ count(); return token::AND_OP; }
-"||"			{ count(); return token::OR_OP; }
+"&&"			{ count(); return token::LOGICAL_AND; }
+"||"			{ count(); return token::LOGICAL_OR; }
 "<="			{ count(); return token::LE_OP; }
 ">="			{ count(); return token::GE_OP; }
 "=="			{ count(); return token::EQ_OP; }
@@ -140,8 +142,9 @@ void comment() {
 	char c, c1;
 
 loop:
-	while ((c = yyinput()) != '*' && c != 0)
-		putchar(c);
+	while ((c = yyinput()) != '*' && c != 0) {
+		// putchar(c);
+    }
 
 	if ((c1 = yyinput()) != '/' && c != 0)
 	{
@@ -149,8 +152,9 @@ loop:
 		goto loop;
 	}
 
-	if (c != 0)
-		putchar(c1);
+	if (c != 0) {
+		// putchar(c1);
+    }
 }
 
 void count() {}

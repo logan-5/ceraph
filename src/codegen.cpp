@@ -317,6 +317,7 @@ ReturnType setUpMergeBlock(llvm::Value* const thenValue,
         builder.CreateBr(mergeBlock);
         builder.SetInsertPoint(elseBlock);
         builder.CreateBr(mergeBlock);
+
         builder.SetInsertPoint(mergeBlock);
         auto* const phi = builder.CreatePHI(thenValue->getType(), 2, "phi");
         phi->addIncoming(thenValue, thenBlock);
@@ -324,6 +325,10 @@ ReturnType setUpMergeBlock(llvm::Value* const thenValue,
         return phi;
     }
 
+    if (!thenBlock->getTerminator()) {
+        builder.SetInsertPoint(thenBlock);
+        builder.CreateBr(mergeBlock);
+    }
     if (!hasElseValue && !elseBlock->getTerminator()) {
         builder.SetInsertPoint(elseBlock);
         builder.CreateBr(mergeBlock);
@@ -409,6 +414,85 @@ ReturnType Visitor::operator()(const ast::While& while_) const {
     builder.SetInsertPoint(loopMergeBlock);
 
     return nullptr;
+}
+
+ReturnType Visitor::operator()(const ast::LogicalAnd& a) const {
+    DECLARE_OR_RETURN(lhs, a.lhs->visit(*this));
+
+    auto& builder = instance.impl->builder;
+    auto* const func = builder.GetInsertBlock()->getParent();
+
+    auto* const branchCond = [&] {
+        if (!lhs) {
+            // to have typechecked and still gotten this far, the lhs must have
+            // been of type Never. so just branch on a dummy value
+            return llvm::cantFail(this->operator()(ast::BoolLiteral{true}));
+        }
+        return lhs;
+    }();
+    auto* const lhsEnd = builder.GetInsertBlock();
+
+    // short-circuit: if lhs is false, skip rhs
+    auto* const rhsBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "and_rhs");
+    auto* const mergeBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "and_merge");
+    builder.CreateCondBr(branchCond, rhsBlock, mergeBlock);
+
+    func->getBasicBlockList().push_back(rhsBlock);
+    builder.SetInsertPoint(rhsBlock);
+    DECLARE_OR_RETURN(rhs, a.rhs->visit(*this));
+    auto* const rhsEnd = builder.GetInsertBlock();
+    builder.CreateBr(mergeBlock);
+
+    func->getBasicBlockList().push_back(mergeBlock);
+    builder.SetInsertPoint(mergeBlock);
+    auto* const phi = builder.CreatePHI(
+          Type::get_type(Type::ID::Bool, instance.impl->context), 2, "and_phi");
+    phi->addIncoming(branchCond, lhsEnd);
+    phi->addIncoming(
+          rhs ?: llvm::cantFail(this->operator()(ast::BoolLiteral{true})),
+          rhsEnd);
+    return phi;
+}
+ReturnType Visitor::operator()(const ast::LogicalOr& o) const {
+    DECLARE_OR_RETURN(lhs, o.lhs->visit(*this));
+
+    auto& builder = instance.impl->builder;
+    auto* const func = builder.GetInsertBlock()->getParent();
+
+    auto* const branchCond = [&] {
+        if (!lhs) {
+            // to have typechecked and still gotten this far, the lhs must have
+            // been of type Never. so just branch on a dummy value
+            return llvm::cantFail(this->operator()(ast::BoolLiteral{true}));
+        }
+        return lhs;
+    }();
+    auto* const lhsEnd = builder.GetInsertBlock();
+
+    // short-circuit: if lhs is true, skip rhs
+    auto* const rhsBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "or_rhs");
+    auto* const mergeBlock =
+          llvm::BasicBlock::Create(instance.impl->context, "or_merge");
+    builder.CreateCondBr(branchCond, mergeBlock, rhsBlock);
+
+    func->getBasicBlockList().push_back(rhsBlock);
+    builder.SetInsertPoint(rhsBlock);
+    DECLARE_OR_RETURN(rhs, o.rhs->visit(*this));
+    auto* const rhsEnd = builder.GetInsertBlock();
+    builder.CreateBr(mergeBlock);
+
+    func->getBasicBlockList().push_back(mergeBlock);
+    builder.SetInsertPoint(mergeBlock);
+    auto* const phi = builder.CreatePHI(
+          Type::get_type(Type::ID::Bool, instance.impl->context), 2, "or_phi");
+    phi->addIncoming(branchCond, lhsEnd);
+    phi->addIncoming(
+          rhs ?: llvm::cantFail(this->operator()(ast::BoolLiteral{true})),
+          rhsEnd);
+    return phi;
 }
 
 ReturnType Visitor::operator()(const ast::NullStmt) const {

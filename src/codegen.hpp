@@ -66,6 +66,9 @@ struct Visitor {
     ReturnType operator()(const ast::IfElse& ifElse) const;
     ReturnType operator()(const ast::While& while_) const;
 
+    ReturnType operator()(const ast::LogicalAnd& a) const;
+    ReturnType operator()(const ast::LogicalOr& o) const;
+
     ReturnType operator()(const ast::NullStmt nullStmt) const;
     ReturnType operator()(const ast::Block& block) const;
 

@@ -93,6 +93,15 @@ auto GetType::operator()(const ast::FunctionDef& func) const -> ReturnType {
                    to_string(*existing) + "')");
     }
     symbols->insertOrOverwrite(func.proto.name, func.proto.returnType);
+
+    symbols->pushScope();
+    util::ScopeGuard pop{[&] { symbols->popScope(); }};
+    for (auto& arg : func.proto.args) {
+        if (arg.name.has_value()) {
+            symbols->insert(*arg.name, arg.type);
+        }
+    }
+
     DECLARE_OR_RETURN(body, func.body->visit(*this));
     return Type::ID::Never;
 }
@@ -138,6 +147,36 @@ auto GetType::operator()(const ast::While& while_) const -> ReturnType {
     DECLARE_OR_RETURN(body, while_.body->visit(*this));
     (void)body;
     return Type::ID::Void;
+}
+auto GetType::operator()(const ast::LogicalAnd& a) const -> ReturnType {
+    DECLARE_OR_RETURN(lhs, a.lhs->visit(*this));
+    if (!Type::matched(lhs, Type::ID::Bool).has_value()) {
+        return err(Twine("left-hand side of logical-and not a boolean "
+                         "expression, found '") +
+                   to_string(lhs) + "' instead");
+    }
+    DECLARE_OR_RETURN(rhs, a.lhs->visit(*this));
+    if (!Type::matched(rhs, Type::ID::Bool).has_value()) {
+        return err(Twine("right-hand side of logical-and not a boolean "
+                         "expression, found '") +
+                   to_string(rhs) + "' instead");
+    }
+    return Type::ID::Bool;
+}
+auto GetType::operator()(const ast::LogicalOr& o) const -> ReturnType {
+    DECLARE_OR_RETURN(lhs, o.lhs->visit(*this));
+    if (!Type::matched(lhs, Type::ID::Bool).has_value()) {
+        return err(Twine("left-hand side of logical-or not a boolean "
+                         "expression, found '") +
+                   to_string(lhs) + "' instead");
+    }
+    DECLARE_OR_RETURN(rhs, o.lhs->visit(*this));
+    if (!Type::matched(rhs, Type::ID::Bool).has_value()) {
+        return err(Twine("right-hand side of logical-or not a boolean "
+                         "expression, found '") +
+                   to_string(rhs) + "' instead");
+    }
+    return Type::ID::Bool;
 }
 
 auto GetType::operator()(const ast::NullStmt nullStmt) const -> ReturnType {
