@@ -16,7 +16,8 @@ class LLVMContext;
 
 namespace ast {
 struct FunctionProto;
-}
+struct StructDef;
+}  // namespace ast
 
 namespace Type {
 
@@ -94,6 +95,23 @@ inline std::optional<ID> matched(ID a, ID b) {
     return std::nullopt;
 }
 
+class StructFields {
+   public:
+    StructFields(const ast::StructDef& def);
+
+    std::int32_t indexOf(llvm::StringRef name);
+
+    struct Field {
+        explicit Field(std::string n, std::int32_t i)
+            : name{std::move(n)}, idx{i} {}
+        std::string name;
+        std::int32_t idx;
+    };
+
+   private:
+    std::vector<Field> fields;
+};
+
 class UserDefinedTypeTable {
    public:
     UserDefinedTypeTable(llvm::LLVMContext& c) : context{c} {}
@@ -107,10 +125,11 @@ class UserDefinedTypeTable {
     };
     struct TypeRecord {
         Type::ID typeId;
+        Type::StructFields fields;
         llvm::StructType* type;
     };
 
-    llvm::Expected<TypeRecord> createNewType(llvm::StringRef name);
+    llvm::Expected<TypeRecord> createNewType(const ast::StructDef& def);
 
     std::optional<TypeRecord> get(llvm::StringRef name) const;
     llvm::StructType* get(Type::ID id_) const;

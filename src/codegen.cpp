@@ -605,16 +605,15 @@ ReturnType Visitor::operator()(const ast::Return& ret) const {
 /////
 
 llvm::Error Visitor::operator()(const ast::StructDef& sd) const {
-    auto result = instance.impl->typeTable.createNewType(sd.name);
+    auto result = instance.impl->typeTable.createNewType(sd);
     if (auto err = result.takeError()) {
         return err;
     }
     std::vector<llvm::Type*> fields;
     fields.reserve(sd.fields.size());
     for (auto& field : sd.fields) {
-        auto* const type =
-              Type::get_type(field.getValue(), instance.impl->context,
-                             instance.impl->typeTable);
+        auto* const type = Type::get_type(field.type, instance.impl->context,
+                                          instance.impl->typeTable);
         assert(type);
         fields.push_back(type);
     }

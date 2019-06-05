@@ -105,8 +105,9 @@ std::string to_string(ID ty, const UserDefinedTypeTable* utt) {
 
 char UserDefinedTypeTable::DuplicateTypeError::ID = 3;
 
-auto UserDefinedTypeTable::createNewType(llvm::StringRef name)
+auto UserDefinedTypeTable::createNewType(const ast::StructDef& def)
       -> llvm::Expected<TypeRecord> {
+    const auto& name = def.name;
     if (ids.find(name) != ids.end()) {
         return llvm::make_error<DuplicateTypeError>(
               llvm::Twine("redeclaration of type '") + name + "'");
@@ -114,7 +115,7 @@ auto UserDefinedTypeTable::createNewType(llvm::StringRef name)
     auto* const theType = llvm::StructType::create(context, name);
     const auto theID = static_cast<ID>(
           names.size() + static_cast<std::size_t>(ID::UserDefinedMin));
-    const auto theRecord = TypeRecord{theID, theType};
+    const auto theRecord = TypeRecord{theID, def, theType};
     names.push_back(name);
     ids.insert(std::pair{name, theRecord});
     return theRecord;
@@ -140,6 +141,36 @@ llvm::StructType* UserDefinedTypeTable::get(Type::ID id_) const {
             return record->type;
     }
     return nullptr;
+}
+
+namespace {
+std::vector<StructFields::Field> makeFields(
+      const ast::StructDef::Fields& astFields) {
+    assert(!util::has_duplicates(astFields, &ast::StructDef::Field::name));
+
+    std::vector<StructFields::Field> ret;
+    ret.reserve(astFields.size());
+    const auto begin = astFields.begin(), end = astFields.end();
+    for (auto it = begin; it != end; ++it) {
+        ret.emplace_back(it->name,
+                         static_cast<std::int32_t>(std::distance(begin, it)));
+    }
+    std::sort(ret.begin(), ret.end(),
+              [](const StructFields::Field& a, const StructFields::Field& b) {
+                  return a.name < b.name;
+              });
+    return ret;
+}
+}  // namespace
+
+StructFields::StructFields(const ast::StructDef& def)
+    : fields{makeFields(def.fields)} {}
+
+std::int32_t StructFields::indexOf(llvm::StringRef name) {
+    auto it =
+          util::binary_find(fields.begin(), fields.end(), name, &Field::name);
+    assert(it != fields.end());
+    return it->idx;
 }
 
 }  // namespace Type

@@ -17,11 +17,6 @@ namespace codegen {
 struct CodeGenInstance;
 }
 
-struct StructField {
-    std::string name;
-    Type::ID type;
-};
-
 struct LexerContext {
     LexerContext(const codegen::CodeGenInstance& i) : instance{i} {}
     std::reference_wrapper<const codegen::CodeGenInstance> instance;

@@ -177,7 +177,12 @@ struct Node
 
 struct StructDef {
     std::string name;
-    using Fields = llvm::StringMap<Type::ID>;
+
+    struct Field {
+        std::string name;
+        Type::ID type;
+    };
+    using Fields = std::vector<Field>;
     Fields fields;
 };
 

@@ -174,8 +174,8 @@ struct Dump {
         ostr << "struct def: " << d.name << '\n';
         for (auto& field : d.fields) {
             indent();
-            ostr << "\t[field]: " << field.getKey().str()
-                 << ", type: " << field.getValue() << '\n';
+            ostr << "\t[field]: " << field.name << ", type: " << field.type
+                 << '\n';
         }
     }
 };

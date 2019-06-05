@@ -17,6 +17,7 @@ if (MSVC)
 endif()
 
 set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(SUBMODULE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(GENERATOR_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generators)
 
 set(GENERATED_DEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -77,6 +78,8 @@ set(SRC ${SRC} ${FLEX_Lexer_OUTPUTS})
 set_source_files_properties(${FLEX_Lexer_OUTPUTS} PROPERTIES COMPILE_FLAGS -Wno-error)
 # include the source .y and .l files in xcodeproj
 set(SRC ${SRC} ${YACC_INPUT_FILE} ${LEX_INPUT_FILE})
+
+set(INCLUDE_DIRS ${INCLUDE_DIRS} ${SUBMODULE_DIR}/range-v3/include/)
 
 add_definitions(${DEFINES})
 add_executable(ceraph ${SRC})

@@ -23,6 +23,15 @@ ast::UnaryExpr make_unary(Operand&& operand);
 template <Operator::Binary Op, typename Lhs, typename Rhs>
 ast::BinaryExpr make_binary(Lhs&& lhs, Rhs&& rhs);
 
+bool field_already_exists(
+    const ast::StructDef::Fields& fields, 
+    const ast::StructDef::Field& theField);
+
+template <typename T>
+std::vector<std::remove_reference_t<T>> vec(T&& t);
+template <typename W, typename T>
+ast::VectorWrapper<std::remove_reference_t<T>, W> vec(T&& t);
+
 YY_DECL;
 
 %}
@@ -67,7 +76,7 @@ YY_DECL;
 
 %type <ast::StructDef> struct_def;
 %type <ast::StructDef::Fields> struct_fields;
-%type <StructField> struct_field;
+%type <ast::StructDef::Field> struct_field;
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
@@ -134,7 +143,7 @@ line: function_proto ';' {
         llvm::errs() << "error";
     }
     assert(!codegen.verify(llvm::errs()));
-    codegen.dump(llvm::errs());
+    // codegen.dump(llvm::errs());
 };
 
 statement
@@ -144,14 +153,14 @@ statement
     | return_statement { $$ = std::move($1); }
     ;
 
-statements: statement { $$ = {ptr($1)}; }
+statements: statement { $$ = vec<ast::Block>(ptr($1)); }
     | statements statement { $1.push_back(ptr($2)); $$ = std::move($1); }
     ;
 
 block_statements: statements { $1.push_back(ptr(ast::NullStmt{})); $$ = std::move($1); }
     | statements expression { $1.push_back(ptr($2)); $$ = std::move($1); }
-    | expression { $$ = {ptr($1)}; }
-    | { $$ = {ptr(ast::NullStmt{})}; }
+    | expression { $$ = vec<ast::Block>(ptr($1)); }
+    | { $$ = vec<ast::Block>(ptr(ast::NullStmt{})); }
     ;
 
 block: '{' block_statements '}' { $$ = ast::Block{std::move($2)}; };
@@ -223,7 +232,7 @@ expression
 function_proto: type_or_void IDENTIFIER '(' maybe_param_list ')' { $$ = ast::FunctionProto{$1, std::move($2), std::move($4)}; };
 maybe_param_list: param_list { $$ = std::move($1); } | empty_param_list { $$ = {}; };
 empty_param_list: | VOID;
-param_list: param { $$ = {std::move($1)}; } 
+param_list: param { $$ = vec($1); } 
     | param_list ',' param { $1.push_back(std::move($3)); $$ = std::move($1); }
     ;
 param: NONVOID_TYPE IDENTIFIER { $$ = {$1, std::move($2)}; }
@@ -235,7 +244,7 @@ function_def: function_proto block[body] { $$ = ast::FunctionDef{std::move($1), 
 function_call_expression: IDENTIFIER '(' maybe_call_arg_list ')' { $$ = ast::FunctionCall{std::move($1), std::move($3)}; };
 maybe_call_arg_list: call_arg_list { $$ = std::move($1); } | empty_call_arg_list { $$ = {}; };
 empty_call_arg_list: | VOID;
-call_arg_list: call_arg { $$ = {std::move($1)}; } 
+call_arg_list: call_arg { $$ = vec($1); } 
     | call_arg_list ',' call_arg { $1.push_back(std::move($3)); $$ = std::move($1); }
     ;
 call_arg: expression { $$ = ptr($1); };
@@ -254,17 +263,17 @@ struct_def: STRUCT IDENTIFIER[name] '{' struct_fields[fields] '}' { $$ = ast::St
     | STRUCT IDENTIFIER[name] '{' '}' { $$ = ast::StructDef{std::move($name), {}}; }
     ;
 
-struct_fields: struct_field { $$ = {std::pair{std::move($1.name), $1.type}}; }
+struct_fields: struct_field { $$ = vec(std::move($1)); }
     | struct_fields struct_field { 
-        if ($1.find($2.name) != $1.end()) { 
+        if (field_already_exists($1, $2)) { 
             llvm::errs() << "duplicate struct member '" << $2.name << "'"; YYERROR;
         }
-        $1.insert(std::pair{std::move($2.name), $2.type});
+        $1.push_back(std::move($2));
         $$ = std::move($1);
     }
     ;
 
-struct_field: NONVOID_TYPE IDENTIFIER ';' { $$ = StructField{std::move($2), $1}; }
+struct_field: NONVOID_TYPE IDENTIFIER ';' { $$ = ast::StructDef::Field{std::move($2), $1}; }
 
 %%
 
@@ -286,4 +295,27 @@ std::optional<Type::ID> LexerContext::getType(llvm::StringRef name) const {
         return record->typeId;
     }
     return std::nullopt;
+}
+
+bool field_already_exists(
+    const ast::StructDef::Fields& fields, 
+    const ast::StructDef::Field& theField) {
+    return std::find_if(fields.begin(), fields.end(), 
+        [&](const ast::StructDef::Field& field) {
+            return field.name == theField.name;
+        }) != fields.end();
+}
+
+template <typename T>
+std::vector<std::remove_reference_t<T>> vec(T&& t) {
+    std::vector<std::remove_reference_t<T>> v;
+    v.push_back(std::move(t));
+    return v;
+}
+
+template <typename W, typename T>
+ast::VectorWrapper<std::remove_reference_t<T>, W> vec(T&& t) {
+    ast::VectorWrapper<std::remove_reference_t<T>, W> v;
+    v.push_back(std::move(t));
+    return v;
 }
