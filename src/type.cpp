@@ -1,10 +1,13 @@
 #include "type.hpp"
 
 #include "ast.hpp"
+#include "ceraph_fwd.hpp"
 #include "util.hpp"
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/DerivedTypes.h"
+
+#include <range/v3/view/transform.hpp>
 
 namespace Type {
 
@@ -61,11 +64,14 @@ llvm::FunctionType* get_type(const ast::FunctionProto& proto,
     assert(llvm::FunctionType::isValidReturnType(returnType));
 
     const auto argTypes =
-          util::transform(proto.args, [&](const ast::FunctionProto::Arg& arg) {
-              auto* const theType = get_type(arg.type, theContext, utt);
-              assert(llvm::FunctionType::isValidArgumentType(theType));
-              return theType;
-          });
+          rv::transform(
+                proto.args,
+                [&](const ast::FunctionProto::Arg& arg) {
+                    auto* const theType = get_type(arg.type, theContext, utt);
+                    assert(llvm::FunctionType::isValidArgumentType(theType));
+                    return theType;
+                }) |
+          ranges::to_vector;
 
     return llvm::FunctionType::get(returnType, argTypes, false);
 }
