@@ -72,7 +72,10 @@ IS			(u|U|l|L)*
 {L}({L}|{D})*		{ 
         count(); 
         if (const auto type = context.getType(yytext)) { 
-            yylval->build(*type); return token::NONVOID_TYPE; 
+            yylval->build(*type); 
+            return Type::is_user_defined(*type) 
+                ? token::USER_DEFINED_TYPE 
+                : token::BUILTIN_NONVOID_TYPE; 
         } else { 
             yylval->build(std::string{yytext}); return check_type();
         }

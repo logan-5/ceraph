@@ -129,9 +129,11 @@ class UserDefinedTypeTable {
         llvm::StructType* type;
     };
 
-    llvm::Expected<TypeRecord> createNewType(const ast::StructDef& def);
+    llvm::Expected<std::reference_wrapper<const TypeRecord>> createNewType(
+          const ast::StructDef& def);
 
-    std::optional<TypeRecord> get(llvm::StringRef name) const;
+    std::optional<std::reference_wrapper<const TypeRecord>> get(
+          llvm::StringRef name) const;
     llvm::StructType* get(Type::ID id_) const;
     std::optional<std::reference_wrapper<const std::string>> get_name(
           Type::ID id_) const;

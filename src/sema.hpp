@@ -67,6 +67,8 @@ struct GetType {
 
     ReturnType operator()(const ast::Return& ret) const;
 
+    ReturnType operator()(const ast::StructValue& v) const;
+
    private:
     ReturnType ret(const std::optional<Type::ID> ty,
                    const llvm::Twine& errorMsg) const;

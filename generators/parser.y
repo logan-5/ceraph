@@ -45,7 +45,7 @@ YY_DECL;
 %parse-param {sema::GetType& typechecker}
 %lex-param {const LexerContext& codegen}
 
-%type <Type::ID> NONVOID_TYPE type_or_void
+%type <Type::ID> BUILTIN_NONVOID_TYPE USER_DEFINED_TYPE nonvoid_type type_or_void
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression postfix_expression
 %type <ast::Node> equality_expression relational_expression and_expression or_expression flow_expression
 %type <ast::Node> CONSTANT STRING_LITERAL
@@ -78,11 +78,13 @@ YY_DECL;
 %type <ast::StructDef::Fields> struct_fields;
 %type <ast::StructDef::Field> struct_field;
 
+%type <ast::StructValue> struct_value;
+
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token LOGICAL_AND LOGICAL_OR MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
-%token XOR_ASSIGN OR_ASSIGN NONVOID_TYPE
+%token XOR_ASSIGN OR_ASSIGN BUILTIN_NONVOID_TYPE USER_DEFINED_TYPE
 %token LEX_ERROR
 
 %token LET
@@ -113,7 +115,8 @@ line: function_proto ';' {
     }
     if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
         const auto& code = *codeE;
-        code->print(llvm::outs());
+        (void)code;
+        // code->print(llvm::outs());
         // llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
@@ -129,7 +132,8 @@ line: function_proto ';' {
     }
     if (auto codeE = ast::Node{$1}.visit(codegen::Visitor{codegen})) {
         const auto& code = *codeE;
-        code->print(llvm::outs());
+        (void)code;
+        // code->print(llvm::outs());
         // llvm::errs() << '\n';
         assert(!codegen.verify(llvm::errs()));
     } else {
@@ -138,7 +142,6 @@ line: function_proto ';' {
     }
 }
 | struct_def {
-    llvm::errs() << $1;
     if (codegen::Visitor{codegen}($1)) {
         llvm::errs() << "error";
     }
@@ -168,7 +171,7 @@ block: '{' block_statements '}' { $$ = ast::Block{std::move($2)}; };
 expression_statement: expression ';' { $$ = std::move($1); };
 null_statement: ';' { $$ = ast::NullStmt{}; };
 
-declaration: NONVOID_TYPE IDENTIFIER '=' expression ';' { $$ = ast::Declaration{$1, std::move($2), ptr($4)}; }
+declaration: nonvoid_type IDENTIFIER '=' expression ';' { $$ = ast::Declaration{$1, std::move($2), ptr($4)}; }
     | LET IDENTIFIER '=' expression ';' { $$ = ast::Declaration{std::nullopt, std::move($2), ptr($4)}; }
     ;
 assignment: IDENTIFIER '=' expression { $$ = ast::Assignment{std::move($1), ptr($3)}; };
@@ -181,6 +184,7 @@ primary_expression:
     IDENTIFIER { $$ = ast::Identifier{std::move($1)}; }
     | CONSTANT { $$ = std::move($1); }
 	| STRING_LITERAL { $$ = std::move($1); }
+    | struct_value { $$ = std::move($1); }
 	| '(' expression ')' { $$ = std::move($2); }
 	;
 
@@ -235,8 +239,8 @@ empty_param_list: | VOID;
 param_list: param { $$ = vec($1); } 
     | param_list ',' param { $1.push_back(std::move($3)); $$ = std::move($1); }
     ;
-param: NONVOID_TYPE IDENTIFIER { $$ = {$1, std::move($2)}; }
-    | NONVOID_TYPE { $$ = {$1, std::nullopt}; }
+param: nonvoid_type IDENTIFIER { $$ = {$1, std::move($2)}; }
+    | nonvoid_type { $$ = {$1, std::nullopt}; }
     ;
 
 function_def: function_proto block[body] { $$ = ast::FunctionDef{std::move($1), ptr($body)}; };
@@ -249,7 +253,8 @@ call_arg_list: call_arg { $$ = vec($1); }
     ;
 call_arg: expression { $$ = ptr($1); };
 
-type_or_void: NONVOID_TYPE { $$ = $1; } | VOID { $$ = Type::ID::Void; };
+type_or_void: nonvoid_type { $$ = $1; } | VOID { $$ = Type::ID::Void; };
+nonvoid_type: BUILTIN_NONVOID_TYPE { $$ = $1; } | USER_DEFINED_TYPE { $$ = $1; };
 
 if_else: IF expression[cond] block[then] { $$ = ast::IfElse{ptr($cond), ptr($then)}; }
     | IF expression[cond] block[then] ELSE block[else_] { $$ = ast::IfElse{ptr($cond), ptr($then), ptr($else_)}; }
@@ -273,7 +278,9 @@ struct_fields: struct_field { $$ = vec(std::move($1)); }
     }
     ;
 
-struct_field: NONVOID_TYPE IDENTIFIER ';' { $$ = ast::StructDef::Field{std::move($2), $1}; }
+struct_field: nonvoid_type IDENTIFIER ';' { $$ = ast::StructDef::Field{std::move($2), $1}; };
+
+struct_value: USER_DEFINED_TYPE '.' '{' '}' { $$ = ast::StructValue{$1}; };
 
 %%
 
@@ -292,7 +299,7 @@ std::optional<Type::ID> LexerContext::getType(llvm::StringRef name) const {
     }
     if (const auto record = this->instance.get().getTypeTable().get(name); 
         record.has_value()) {
-        return record->typeId;
+        return record->get().typeId;
     }
     return std::nullopt;
 }

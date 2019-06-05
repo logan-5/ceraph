@@ -224,4 +224,8 @@ auto GetType::operator()(const ast::Assignment& assign) const -> ReturnType {
 auto GetType::operator()(const ast::Return&) const -> ReturnType {
     return Type::ID::Never;
 }
+
+auto GetType::operator()(const ast::StructValue& val) const -> ReturnType {
+    return val.type;
+}
 }  // namespace sema

@@ -178,6 +178,10 @@ struct Dump {
                  << '\n';
         }
     }
+    void operator()(const StructValue& v) const {
+        indent();
+        ostr << "struct literal: " << Type::to_string(v.type);
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

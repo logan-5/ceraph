@@ -24,5 +24,6 @@ int main(int, char**) {
     sema::GetType typechecker;
     yy::parser parser{instance, typechecker};
     parser.parse();
+    instance.dump(llvm::outs());
     return 0;
 }

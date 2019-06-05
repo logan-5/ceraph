@@ -112,7 +112,7 @@ std::string to_string(ID ty, const UserDefinedTypeTable* utt) {
 char UserDefinedTypeTable::DuplicateTypeError::ID = 3;
 
 auto UserDefinedTypeTable::createNewType(const ast::StructDef& def)
-      -> llvm::Expected<TypeRecord> {
+      -> llvm::Expected<std::reference_wrapper<const TypeRecord>> {
     const auto& name = def.name;
     if (ids.find(name) != ids.end()) {
         return llvm::make_error<DuplicateTypeError>(
@@ -121,16 +121,16 @@ auto UserDefinedTypeTable::createNewType(const ast::StructDef& def)
     auto* const theType = llvm::StructType::create(context, name);
     const auto theID = static_cast<ID>(
           names.size() + static_cast<std::size_t>(ID::UserDefinedMin));
-    const auto theRecord = TypeRecord{theID, def, theType};
+    auto theRecord = TypeRecord{theID, def, theType};
     names.push_back(name);
-    ids.insert(std::pair{name, theRecord});
-    return theRecord;
+    const auto [it, _] = ids.insert(std::pair{name, std::move(theRecord)});
+    return std::cref(it->getValue());
 }
 
 auto UserDefinedTypeTable::get(llvm::StringRef name) const
-      -> std::optional<TypeRecord> {
+      -> std::optional<std::reference_wrapper<const TypeRecord>> {
     if (auto it = ids.find(name); it != ids.end())
-        return it->getValue();
+        return std::ref(it->getValue());
     return std::nullopt;
 }
 std::optional<std::reference_wrapper<const std::string>>
@@ -144,7 +144,7 @@ UserDefinedTypeTable::get_name(Type::ID id_) const {
 llvm::StructType* UserDefinedTypeTable::get(Type::ID id_) const {
     if (const auto name = get_name(id_); name.has_value()) {
         if (const auto record = get(name->get()); record.has_value())
-            return record->type;
+            return record->get().type;
     }
     return nullptr;
 }

@@ -617,8 +617,21 @@ llvm::Error Visitor::operator()(const ast::StructDef& sd) const {
         assert(type);
         fields.push_back(type);
     }
-    result->type->setBody(fields, false);
+    result->get().type->setBody(fields, false);
     return llvm::Error::success();
+}
+
+ReturnType Visitor::operator()(const ast::StructValue& v) const {
+    auto* const alloca = createAllocaInEntryBlock(
+          Type::get_type(v.type, instance.impl->context,
+                         instance.impl->typeTable),
+          llvm::Twine("dummy_alloca_") +
+                Type::to_string(v.type, &instance.impl->typeTable));
+    assert(alloca);
+
+    return instance.impl->builder.CreateLoad(
+          alloca, llvm::Twine("dummy_load_") +
+                        Type::to_string(v.type, &instance.impl->typeTable));
 }
 
 /////

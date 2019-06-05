@@ -142,6 +142,10 @@ struct LogicalOr {
     NodePtr lhs, rhs;
 };
 
+struct StructValue {
+    Type::ID type;
+};
+
 struct Node
     : std::variant<NullStmt,
                    BoolLiteral,
@@ -162,7 +166,8 @@ struct Node
                    Block,
                    Declaration,
                    Assignment,
-                   Return> {
+                   Return,
+                   StructValue> {
     using variant::variant;
 
     template <typename Visitor>
