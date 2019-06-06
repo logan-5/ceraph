@@ -15,7 +15,7 @@ extern "C" int yywrap() {
 }
 
 void yy::parser::error(const std::string& err) {
-    std::cerr << err;
+    std::cerr << err << '\n';
 }
 
 int main(int, char**) {

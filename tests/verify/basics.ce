@@ -1,0 +1,25 @@
+void bar(int);
+int g(double n);
+
+void f() {
+    int x = 5;
+    int y = x + 1;
+    int z = x + y * y / x % y;
+
+    int a = if y < x {
+        42
+    } else {
+        43
+    };
+
+    while int i = 0; i < a {
+        bar(i);
+        i = i + 1 + g(5.0);
+    };
+
+    int b = if x < 0 {
+        return;
+    } else {
+        0
+    };
+}

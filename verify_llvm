@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+COMPILER=$1
+FILE=$2
+
+($COMPILER < $FILE 2>&1 | llvm-as > /dev/null 2>&1)
+RESULT=$?
+
+if grep '.fail.' <<<$FILE > /dev/null; then
+    exit $([ $RESULT -ne 0 ])
+else
+    exit $RESULT
+fi

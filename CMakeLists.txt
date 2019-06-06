@@ -86,7 +86,17 @@ add_executable(ceraph ${SRC})
 target_link_libraries(ceraph ${LINK_LIBS})
 include_directories(ceraph ${INCLUDE_DIRS})
 
-# enable_testing()
+enable_testing()
+set(TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+
+set(VERIFY_TEST_DIR ${TEST_DIR}/verify)
+file(GLOB verify_tests ${VERIFY_TEST_DIR}/*.ce)
+foreach(verify_test ${verify_tests})
+    get_filename_component(test_name ${verify_test} NAME_WE)
+    add_test(NAME ${test_name}
+            COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/verify_llvm $<TARGET_FILE:ceraph> ${verify_test})
+endforeach()
+
 # set(SCRIPT_TEST_INPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/testdefs)
 # set(SCRIPT_TEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/tests)
 # add_test(NAME create_script_tests COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/create_tests.py --output ${SCRIPT_TEST_DIR})
