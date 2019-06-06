@@ -634,6 +634,30 @@ ReturnType Visitor::operator()(const ast::StructValue& v) const {
                         Type::to_string(v.type, &instance.impl->typeTable));
 }
 
+ReturnType Visitor::operator()(const ast::StructMemberAccess& m) const {
+    // TODO lvalues/rvalues, optimize loads
+    DECLARE_OR_RETURN(lhs, m.lhs->visit(*this));
+    auto* const alloca =
+          createAllocaInEntryBlock(lhs->getType(), llvm::Twine("dummy_alloca"));
+    assert(alloca);
+    instance.impl->builder.CreateStore(lhs, alloca);
+
+    assert(llvm::isa<llvm::StructType>(lhs->getType()));
+    const auto record = instance.impl->typeTable.get(
+          llvm::cast<llvm::StructType>(lhs->getType()));
+    assert(record);
+    const auto idx = record->get().fields.indexOf(m.rhs);
+    assert(idx);
+    auto* const zero = cantFail(this->operator()(ast::IntLiteral{0}));
+    auto* const indexVal = cantFail(this->operator()(ast::IntLiteral{*idx}));
+    const std::array indices{zero, indexVal};
+    auto& builder = instance.impl->builder;
+    auto* const gep =
+          builder.CreateGEP(alloca, indices, lhs->getName() + "_gep");
+
+    return builder.CreateLoad(gep, lhs->getName() + "_gep_load");
+}
+
 /////
 
 llvm::AllocaInst* Visitor::createAllocaInEntryBlock(

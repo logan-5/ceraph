@@ -182,6 +182,16 @@ struct Dump {
         indent();
         ostr << "struct literal: " << Type::to_string(v.type);
     }
+
+    void operator()(const StructMemberAccess& a) const {
+        indent();
+        ostr << "member access:\n";
+        Dump next{indentLevel + 1, ostr};
+        std::visit(next, *a.lhs);
+        ostr << '\n';
+        indent();
+        ostr << "member: " << a.rhs;
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

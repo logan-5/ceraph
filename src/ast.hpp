@@ -146,6 +146,11 @@ struct StructValue {
     Type::ID type;
 };
 
+struct StructMemberAccess {
+    NodePtr lhs;
+    std::string rhs;
+};
+
 struct Node
     : std::variant<NullStmt,
                    BoolLiteral,
@@ -167,7 +172,8 @@ struct Node
                    Declaration,
                    Assignment,
                    Return,
-                   StructValue> {
+                   StructValue,
+                   StructMemberAccess> {
     using variant::variant;
 
     template <typename Visitor>

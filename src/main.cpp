@@ -21,7 +21,7 @@ void yy::parser::error(const std::string& err) {
 int main(int, char**) {
     // std::ios::sync_with_stdio(false);
     codegen::CodeGenInstance instance;
-    sema::GetType typechecker;
+    sema::GetType typechecker{instance.getTypeTable()};
     yy::parser parser{instance, typechecker};
     parser.parse();
     instance.dump(llvm::outs());

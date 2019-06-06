@@ -221,11 +221,31 @@ auto GetType::operator()(const ast::Assignment& assign) const -> ReturnType {
                "' and '" + to_string(rhs) + "'");
 }
 
-auto GetType::operator()(const ast::Return&) const -> ReturnType {
+auto GetType::operator()(const ast::Return& ret) const -> ReturnType {
+    if (ret.value) {
+        DECLARE_OR_RETURN(value, ret.value->visit(*this));
+        (void)value;
+    }
     return Type::ID::Never;
 }
 
 auto GetType::operator()(const ast::StructValue& val) const -> ReturnType {
     return val.type;
+}
+
+auto GetType::operator()(const ast::StructMemberAccess& m) const -> ReturnType {
+    DECLARE_OR_RETURN(lhs, m.lhs->visit(*this));
+    if (!Type::is_user_defined(lhs)) {
+        return err(Twine("cannot do member access on a scalar type ('") +
+                   Type::to_string(lhs, &typeTable.get()) + "')");
+    }
+    const auto record = typeTable.get().get(lhs);
+    assert(record);
+    const auto fieldType = record->get().fields.typeOf(m.rhs);
+    if (!fieldType) {
+        return err(Twine("no member named '") + m.rhs + "' in type '" +
+                   Type::to_string(lhs, &typeTable.get()) + "'");
+    }
+    return *fieldType;
 }
 }  // namespace sema

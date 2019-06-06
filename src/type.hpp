@@ -6,6 +6,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/Support/Error.h"
 
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -99,17 +100,21 @@ class StructFields {
    public:
     StructFields(const ast::StructDef& def);
 
-    std::int32_t indexOf(llvm::StringRef name);
+    std::optional<std::int32_t> indexOf(llvm::StringRef name) const;
+    std::optional<Type::ID> typeOf(llvm::StringRef name) const;
 
     struct Field {
-        explicit Field(std::string n, std::int32_t i)
-            : name{std::move(n)}, idx{i} {}
+        explicit Field(std::string n, std::int32_t i, Type::ID t)
+            : name{std::move(n)}, idx{i}, type{t} {}
         std::string name;
         std::int32_t idx;
+        Type::ID type;
     };
 
    private:
-    std::vector<Field> fields;
+    using Fields = std::vector<Field>;
+    Fields::const_iterator find(llvm::StringRef name) const;
+    Fields fields;
 };
 
 class UserDefinedTypeTable {
@@ -134,15 +139,21 @@ class UserDefinedTypeTable {
 
     std::optional<std::reference_wrapper<const TypeRecord>> get(
           llvm::StringRef name) const;
-    llvm::StructType* get(Type::ID id_) const;
+    std::optional<std::reference_wrapper<const TypeRecord>> get(
+          Type::ID id_) const;
+    std::optional<std::reference_wrapper<const TypeRecord>> get(
+          llvm::StructType* type) const;
     std::optional<std::reference_wrapper<const std::string>> get_name(
           Type::ID id_) const;
+    std::optional<std::reference_wrapper<const std::string>> get_name(
+          llvm::StructType* type) const;
 
    private:
     std::reference_wrapper<llvm::LLVMContext> context;
 
     llvm::StringMap<TypeRecord> ids;
     std::vector<std::string> names;
+    std::map<llvm::StructType*, std::string> llvmNames;
 };
 
 }  // namespace Type

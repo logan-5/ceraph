@@ -79,6 +79,7 @@ YY_DECL;
 %type <ast::StructDef::Field> struct_field;
 
 %type <ast::StructValue> struct_value;
+%type <ast::StructMemberAccess> struct_member_access;
 
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
 %token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
@@ -190,6 +191,7 @@ primary_expression:
 
 postfix_expression: primary_expression { $$ = std::move($1); }
     | function_call_expression { $$ = std::move($1); }
+    | struct_member_access { $$ = std::move($1); }
     ;
 
 unary_expression: postfix_expression { $$ = std::move($1); }
@@ -281,6 +283,8 @@ struct_fields: struct_field { $$ = vec(std::move($1)); }
 struct_field: nonvoid_type IDENTIFIER ';' { $$ = ast::StructDef::Field{std::move($2), $1}; };
 
 struct_value: USER_DEFINED_TYPE '.' '{' '}' { $$ = ast::StructValue{$1}; };
+
+struct_member_access: postfix_expression '.' IDENTIFIER { $$ = ast::StructMemberAccess{ptr($1), std::move($3)}; };
 
 %%
 

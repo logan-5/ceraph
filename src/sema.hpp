@@ -31,11 +31,13 @@ struct TypeCheckError : public llvm::ErrorInfo<TypeCheckError> {
 };
 
 struct GetType {
+    std::reference_wrapper<const Type::UserDefinedTypeTable> typeTable;
     std::unique_ptr<scope::SymbolTable<std::optional<Type::ID>, detail::None>>
           symbols;
 
-    GetType()
-        : symbols{std::make_unique<
+    explicit GetType(const Type::UserDefinedTypeTable& in_typeTable)
+        : typeTable{in_typeTable}
+        , symbols{std::make_unique<
                 scope::SymbolTable<std::optional<Type::ID>, detail::None>>()} {}
 
     using ReturnType = llvm::Expected<Type::ID>;
@@ -68,6 +70,7 @@ struct GetType {
     ReturnType operator()(const ast::Return& ret) const;
 
     ReturnType operator()(const ast::StructValue& v) const;
+    ReturnType operator()(const ast::StructMemberAccess& m) const;
 
    private:
     ReturnType ret(const std::optional<Type::ID> ty,

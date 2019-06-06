@@ -46,8 +46,8 @@ llvm::Type* get_type(ID theType,
 
         default: {
             if (is_user_defined(theType)) {
-                if (llvm::StructType* const structType = utt.get(theType))
-                    return structType;
+                if (const auto record = utt.get(theType))
+                    return record->get().type;
                 assert(false && "unknown type");
                 return nullptr;
             }
@@ -123,6 +123,7 @@ auto UserDefinedTypeTable::createNewType(const ast::StructDef& def)
           names.size() + static_cast<std::size_t>(ID::UserDefinedMin));
     auto theRecord = TypeRecord{theID, def, theType};
     names.push_back(name);
+    llvmNames[theType] = name;
     const auto [it, _] = ids.insert(std::pair{name, std::move(theRecord)});
     return std::cref(it->getValue());
 }
@@ -141,12 +142,27 @@ UserDefinedTypeTable::get_name(Type::ID id_) const {
         return std::nullopt;
     return names[idx];
 }
-llvm::StructType* UserDefinedTypeTable::get(Type::ID id_) const {
+std::optional<std::reference_wrapper<const std::string>>
+UserDefinedTypeTable::get_name(llvm::StructType* type) const {
+    assert(type);
+    if (auto it = llvmNames.find(type); it != llvmNames.end())
+        return it->second;
+    return std::nullopt;
+}
+
+auto UserDefinedTypeTable::get(Type::ID id_) const
+      -> std::optional<std::reference_wrapper<const TypeRecord>> {
     if (const auto name = get_name(id_); name.has_value()) {
-        if (const auto record = get(name->get()); record.has_value())
-            return record->get().type;
+        return get(name->get());
     }
-    return nullptr;
+    return std::nullopt;
+}
+auto UserDefinedTypeTable::get(llvm::StructType* type) const
+      -> std::optional<std::reference_wrapper<const TypeRecord>> {
+    if (const auto name = get_name(type); name.has_value()) {
+        return get(name->get());
+    }
+    return std::nullopt;
 }
 
 namespace {
@@ -159,7 +175,8 @@ std::vector<StructFields::Field> makeFields(
     const auto begin = astFields.begin(), end = astFields.end();
     for (auto it = begin; it != end; ++it) {
         ret.emplace_back(it->name,
-                         static_cast<std::int32_t>(std::distance(begin, it)));
+                         static_cast<std::int32_t>(std::distance(begin, it)),
+                         it->type);
     }
     std::sort(ret.begin(), ret.end(),
               [](const StructFields::Field& a, const StructFields::Field& b) {
@@ -172,11 +189,18 @@ std::vector<StructFields::Field> makeFields(
 StructFields::StructFields(const ast::StructDef& def)
     : fields{makeFields(def.fields)} {}
 
-std::int32_t StructFields::indexOf(llvm::StringRef name) {
-    auto it =
-          util::binary_find(fields.begin(), fields.end(), name, &Field::name);
-    assert(it != fields.end());
-    return it->idx;
+auto StructFields::find(llvm::StringRef name) const -> Fields::const_iterator {
+    return util::binary_find(fields.begin(), fields.end(), name, &Field::name);
+}
+
+std::optional<std::int32_t> StructFields::indexOf(llvm::StringRef name) const {
+    const auto it = this->find(name);
+    return it == fields.end() ? std::nullopt : std::optional{it->idx};
+}
+
+std::optional<Type::ID> StructFields::typeOf(llvm::StringRef name) const {
+    const auto it = this->find(name);
+    return it == fields.end() ? std::nullopt : std::optional{it->type};
 }
 
 }  // namespace Type

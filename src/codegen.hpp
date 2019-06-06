@@ -82,6 +82,7 @@ struct Visitor {
 
     llvm::Error operator()(const ast::StructDef& sd) const;
     ReturnType operator()(const ast::StructValue& v) const;
+    ReturnType operator()(const ast::StructMemberAccess& m) const;
 
    private:
     llvm::Value* make_floating_constant(Type::ID type,
