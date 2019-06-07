@@ -92,6 +92,10 @@ struct Visitor {
 
     llvm::AllocaInst* createAllocaInEntryBlock(llvm::Type* type,
                                                const llvm::Twine& name) const;
+
+    llvm::Value* load(llvm::Value* val) const;
+    ReturnType load(ReturnType&& ret) const;
+    llvm::Type* getLoadedType(llvm::Value* val) const;
 };
 
 }  // namespace codegen

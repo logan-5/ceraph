@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_CXX_STANDARD 17)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
 
 # workaround needed for bison parse.assert
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DYY_NULLPTR=nullptr")
@@ -96,14 +96,3 @@ foreach(verify_test ${verify_tests})
     add_test(NAME ${test_name}
             COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/verify_llvm $<TARGET_FILE:ceraph> ${verify_test})
 endforeach()
-
-# set(SCRIPT_TEST_INPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/testdefs)
-# set(SCRIPT_TEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/tests)
-# add_test(NAME create_script_tests COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/create_tests.py --output ${SCRIPT_TEST_DIR})
-
-# file(GLOB test_script_generators ${SCRIPT_TEST_INPUT_DIR}/*.ktd)
-# foreach(test_script_generator ${test_script_generators})
-#     get_filename_component(test_script ${test_script_generator} NAME_WE)
-#     add_test(NAME ${test_script}
-#             COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/run_test.py --interp $<TARGET_FILE:kepler_lang> --test ${SCRIPT_TEST_DIR}/${test_script}.k)
-# endforeach()

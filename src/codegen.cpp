@@ -94,7 +94,7 @@ ReturnType negate(CodeGenInstance::Impl& instance, Value* operand) {
 }  // namespace
 
 ReturnType Visitor::operator()(const ast::UnaryExpr& unary) const {
-    DECLARE_OR_RETURN_NOVOID(operand, unary.operand->visit(*this));
+    DECLARE_OR_RETURN_NOVOID(operand, load(unary.operand->visit(*this)));
     using namespace Operator;
     switch (unary.op) {
         case Unary::Minus:
@@ -104,8 +104,8 @@ ReturnType Visitor::operator()(const ast::UnaryExpr& unary) const {
 }
 
 ReturnType Visitor::operator()(const ast::BinaryExpr& binary) const {
-    DECLARE_OR_RETURN_NOVOID(lhs, binary.lhs->visit(*this));
-    DECLARE_OR_RETURN_NOVOID(rhs, binary.rhs->visit(*this));
+    DECLARE_OR_RETURN_NOVOID(lhs, load(binary.lhs->visit(*this)));
+    DECLARE_OR_RETURN_NOVOID(rhs, load(binary.rhs->visit(*this)));
     assert(lhs->getType() ==
            rhs->getType());  // TODO implicit conversions in the front(er)end?
     llvm::Type* const type = lhs->getType();
@@ -176,8 +176,7 @@ ReturnType Visitor::operator()(const ast::BinaryExpr& binary) const {
 
 ReturnType Visitor::operator()(const ast::Identifier& ident) const {
     if (auto* const value = instance.impl->symtable.get(ident.name)) {
-        auto* const load = instance.impl->builder.CreateLoad(value, ident.name);
-        return load;
+        return value;
     }
     return err("identifier '" + ident.name + "' not found");
 }
@@ -241,7 +240,7 @@ ReturnType Visitor::operator()(const ast::FunctionDef& func) const {
         builder.CreateStore(&arg, alloca);
     }
 
-    DECLARE_OR_RETURN(body, func.body->visit(*this));
+    DECLARE_OR_RETURN(body, load(func.body->visit(*this)));
 
     auto* const endBlock = builder.GetInsertBlock();
     if (!endBlock->getTerminator()) {
@@ -271,7 +270,7 @@ ReturnType Visitor::operator()(const ast::FunctionCall& call) const {
     llvm::SmallVector<Value*, 8> args;
     for (std::size_t i = 0; i < call.args.size(); ++i) {
         auto& argExpr = call.args[i];
-        DECLARE_OR_RETURN_NOVOID(arg, argExpr->visit(*this));
+        DECLARE_OR_RETURN_NOVOID(arg, load(argExpr->visit(*this)));
         llvm::Argument& destArg = *std::next(f->arg_begin(), i);
         if (destArg.getType() != arg->getType()) {
             return err("type mismatch for argument " + llvm::Twine(i + 1));
@@ -350,7 +349,7 @@ ReturnType setUpMergeBlock(llvm::Value* const thenValue,
 }  // namespace
 
 ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
-    DECLARE_OR_RETURN_NOVOID(cond, ifElse.cond->visit(*this));
+    DECLARE_OR_RETURN_NOVOID(cond, load(ifElse.cond->visit(*this)));
     if (cond->getType() != Type::get_type(Type::ID::Bool,
                                           instance.impl->context,
                                           instance.impl->typeTable)) {
@@ -371,7 +370,7 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
     auto* const branchInst = builder.CreateCondBr(cond, thenBlock, elseBlock);
     (void)branchInst;
     builder.SetInsertPoint(thenBlock);
-    DECLARE_OR_RETURN(thenBranch, ifElse.thenBranch->visit(*this));
+    DECLARE_OR_RETURN(thenBranch, load(ifElse.thenBranch->visit(*this)));
     auto* const thenBlockEnd = builder.GetInsertBlock();
 
     func->getBasicBlockList().push_back(elseBlock);
@@ -381,7 +380,7 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
         return err("'if' without 'else' must evaluate to void");
     }
     DECLARE_OR_RETURN(elseBranch, hasElseBranch
-                                        ? ifElse.elseBranch->visit(*this)
+                                        ? load(ifElse.elseBranch->visit(*this))
                                         : ReturnType{nullptr});
     auto* const elseBlockEnd = builder.GetInsertBlock();
     func->getBasicBlockList().push_back(mergeBlock);
@@ -415,7 +414,7 @@ ReturnType Visitor::operator()(const ast::While& while_) const {
     func->getBasicBlockList().push_back(loopCondBlock);
     builder.CreateBr(loopCondBlock);
     builder.SetInsertPoint(loopCondBlock);
-    DECLARE_OR_RETURN(cond, while_.cond->visit(*this));
+    DECLARE_OR_RETURN(cond, load(while_.cond->visit(*this)));
     builder.CreateCondBr(cond, loopBodyBlock, loopMergeBlock);
 
     func->getBasicBlockList().push_back(loopBodyBlock);
@@ -431,7 +430,7 @@ ReturnType Visitor::operator()(const ast::While& while_) const {
 }
 
 ReturnType Visitor::operator()(const ast::LogicalAnd& a) const {
-    DECLARE_OR_RETURN(lhs, a.lhs->visit(*this));
+    DECLARE_OR_RETURN(lhs, load(a.lhs->visit(*this)));
 
     auto& builder = instance.impl->builder;
     auto* const func = builder.GetInsertBlock()->getParent();
@@ -455,7 +454,7 @@ ReturnType Visitor::operator()(const ast::LogicalAnd& a) const {
 
     func->getBasicBlockList().push_back(rhsBlock);
     builder.SetInsertPoint(rhsBlock);
-    DECLARE_OR_RETURN(rhs, a.rhs->visit(*this));
+    DECLARE_OR_RETURN(rhs, load(a.rhs->visit(*this)));
     auto* const rhsEnd = builder.GetInsertBlock();
     builder.CreateBr(mergeBlock);
 
@@ -472,7 +471,7 @@ ReturnType Visitor::operator()(const ast::LogicalAnd& a) const {
     return phi;
 }
 ReturnType Visitor::operator()(const ast::LogicalOr& o) const {
-    DECLARE_OR_RETURN(lhs, o.lhs->visit(*this));
+    DECLARE_OR_RETURN(lhs, load(o.lhs->visit(*this)));
 
     auto& builder = instance.impl->builder;
     auto* const func = builder.GetInsertBlock()->getParent();
@@ -496,7 +495,7 @@ ReturnType Visitor::operator()(const ast::LogicalOr& o) const {
 
     func->getBasicBlockList().push_back(rhsBlock);
     builder.SetInsertPoint(rhsBlock);
-    DECLARE_OR_RETURN(rhs, o.rhs->visit(*this));
+    DECLARE_OR_RETURN(rhs, load(o.rhs->visit(*this)));
     auto* const rhsEnd = builder.GetInsertBlock();
     builder.CreateBr(mergeBlock);
 
@@ -532,7 +531,7 @@ ReturnType Visitor::operator()(const ast::Block& block) const {
 }
 
 ReturnType Visitor::operator()(const ast::Declaration& decl) const {
-    DECLARE_OR_RETURN(init, decl.init->visit(*this));
+    DECLARE_OR_RETURN(init, load(decl.init->visit(*this)));
     if (!init) {
         // to have typechecked and still gotten this far, the initializer must
         // have been of type Never. so this declaration will never actually
@@ -593,7 +592,7 @@ ReturnType Visitor::operator()(const ast::Return& ret) const {
             return err("returning void from non-void function");
         return instance.impl->builder.CreateRetVoid();
     }
-    DECLARE_OR_RETURN(value, ret.value->visit(*this));
+    DECLARE_OR_RETURN(value, load(ret.value->visit(*this)));
     if (returnType != value->getType()) {
         return err("return type mismatch");
     }
@@ -625,37 +624,40 @@ ReturnType Visitor::operator()(const ast::StructValue& v) const {
     auto* const alloca = createAllocaInEntryBlock(
           Type::get_type(v.type, instance.impl->context,
                          instance.impl->typeTable),
-          llvm::Twine("dummy_alloca_") +
+          llvm::Twine("temp_alloca_") +
                 Type::to_string(v.type, &instance.impl->typeTable));
-    assert(alloca);
-
-    return instance.impl->builder.CreateLoad(
-          alloca, llvm::Twine("dummy_load_") +
-                        Type::to_string(v.type, &instance.impl->typeTable));
+    return alloca;
 }
 
 ReturnType Visitor::operator()(const ast::StructMemberAccess& m) const {
-    // TODO lvalues/rvalues, optimize loads
-    DECLARE_OR_RETURN(lhs, m.lhs->visit(*this));
-    auto* const alloca =
-          createAllocaInEntryBlock(lhs->getType(), llvm::Twine("dummy_alloca"));
-    assert(alloca);
-    instance.impl->builder.CreateStore(lhs, alloca);
+    auto& builder = instance.impl->builder;
 
-    assert(llvm::isa<llvm::StructType>(lhs->getType()));
-    const auto record = instance.impl->typeTable.get(
-          llvm::cast<llvm::StructType>(lhs->getType()));
+    DECLARE_OR_RETURN(lhs, m.lhs->visit(*this));
+    auto* const loadType = getLoadedType(lhs);
+    assert(llvm::isa<llvm::StructType>(loadType));
+
+    auto* const ptr = [&]() -> llvm::Value* {
+        if (!llvm::isa<llvm::PointerType>(lhs->getType())) {
+            auto* const alloca =
+                  createAllocaInEntryBlock(loadType, "temp_alloca");
+            builder.CreateStore(lhs, alloca);
+            return alloca;
+        }
+        return lhs;
+    }();
+    assert(llvm::isa<llvm::PointerType>(ptr->getType()));
+
+    const auto record =
+          instance.impl->typeTable.get(llvm::cast<llvm::StructType>(loadType));
     assert(record);
     const auto idx = record->get().fields.indexOf(m.rhs);
     assert(idx);
-    auto* const zero = cantFail(this->operator()(ast::IntLiteral{0}));
     auto* const indexVal = cantFail(this->operator()(ast::IntLiteral{*idx}));
+    auto* const zero = cantFail(this->operator()(ast::IntLiteral{0}));
     const std::array indices{zero, indexVal};
-    auto& builder = instance.impl->builder;
-    auto* const gep =
-          builder.CreateGEP(alloca, indices, lhs->getName() + "_gep");
+    auto* const gep = builder.CreateGEP(ptr, indices, lhs->getName() + "_gep");
 
-    return builder.CreateLoad(gep, lhs->getName() + "_gep_load");
+    return gep;
 }
 
 /////
@@ -684,6 +686,26 @@ Value* Visitor::make_integer_constant(Type::ID type,
     assert(t);
     assert(t->isIntegerTy());
     return llvm::ConstantInt::get(t, value);
+}
+
+llvm::Value* Visitor::load(llvm::Value* val) const {
+    if (val && (llvm::isa<llvm::AllocaInst>(val) ||
+                llvm::isa<llvm::GetElementPtrInst>(val))) {
+        return instance.impl->builder.CreateLoad(val, val->getName() + "_load");
+    }
+    return val;
+}
+ReturnType Visitor::load(ReturnType&& ret) const {
+    if (auto err = ret.takeError())
+        return std::move(err);
+    return load(*ret);
+}
+llvm::Type* Visitor::getLoadedType(llvm::Value* val) const {
+    if (val && (llvm::isa<llvm::AllocaInst>(val) ||
+                llvm::isa<llvm::GetElementPtrInst>(val))) {
+        return llvm::cast<llvm::PointerType>(val->getType())->getElementType();
+    }
+    return val->getType();
 }
 
 }  // namespace codegen

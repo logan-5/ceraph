@@ -16,6 +16,7 @@ void f() {
         bar(i);
         i = i + 1 + g(5.0);
     };
+    bar(z);
 
     int b = if x < 0 {
         return;
