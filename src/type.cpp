@@ -109,6 +109,56 @@ std::string to_string(ID ty, const UserDefinedTypeTable* utt) {
     return "";
 }
 
+/////////////////
+// compound types
+
+struct ToStringVisitor {
+    using ReturnType = llvm::Twine;
+
+    const UserDefinedTypeTable* table;
+
+    ReturnType operator()(const ID ty) const { return to_string(ty, table); }
+    ReturnType operator()(const Pointer& ptr) const {
+        return ReturnType{"pointer to "} + std::visit(*this, *ptr.to);
+    }
+    ReturnType operator()(const Array& arr) const {
+        return ReturnType{"array of "} + std::visit(*this, *arr.of) +
+               ", size " + ReturnType{arr.size};
+    }
+};
+
+std::string to_string(const CompoundType& ty,
+                      const UserDefinedTypeTable* table) {
+    return std::visit(ToStringVisitor{table}, ty).str();
+}
+
+struct GetLLVMTypeVisitor {
+    using ReturnType = llvm::Type*;
+
+    std::reference_wrapper<llvm::LLVMContext> context;
+    std::reference_wrapper<const UserDefinedTypeTable> utt;
+
+    ReturnType operator()(const ID ty) const {
+        return get_type(ty, context, utt);
+    }
+    ReturnType operator()(const Pointer& ptr) const {
+        const auto addressSpace = 0;  // i do not know
+        return llvm::PointerType::get(std::visit(*this, *ptr.to), addressSpace);
+    }
+    ReturnType operator()(const Array& arr) const {
+        return llvm::ArrayType::get(std::visit(*this, *arr.of), arr.size);
+    }
+};
+
+llvm::Type* get_type(const CompoundType& theType,
+                     llvm::LLVMContext& context,
+                     const UserDefinedTypeTable& utt) {
+    return std::visit(GetLLVMTypeVisitor{context, utt}, theType);
+}
+
+//////////////////////////
+// user-defined type table
+
 char UserDefinedTypeTable::DuplicateTypeError::ID = 3;
 
 auto UserDefinedTypeTable::createNewType(const ast::StructDef& def)

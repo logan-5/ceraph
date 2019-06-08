@@ -7,8 +7,10 @@
 #include "llvm/Support/Error.h"
 
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace llvm {
@@ -85,6 +87,40 @@ llvm::FunctionType* get_type(const ast::FunctionProto& proto,
 inline bool is_void(ID t) {
     return t == ID::Void;
 }
+
+//////
+
+struct CompoundType;
+using InnerTypePtr = std::unique_ptr<CompoundType>;
+
+struct Pointer {
+    InnerTypePtr to;
+};
+
+struct Array {
+    InnerTypePtr of;
+    std::size_t size;
+};
+
+struct CompoundType : std::variant<ID, Pointer, Array> {
+    using variant::variant;
+};
+
+inline InnerTypePtr ptr(CompoundType c) {
+    return std::make_unique<CompoundType>(std::move(c));
+}
+
+std::string to_string(const CompoundType& ty,
+                      const UserDefinedTypeTable* = nullptr);
+template <typename OStream>
+OStream& operator<<(OStream& ostr, const CompoundType& ty) {
+    return ostr << to_string(ty);
+}
+llvm::Type* get_type(const CompoundType& theType,
+                     llvm::LLVMContext& context,
+                     const UserDefinedTypeTable& utt);
+
+//////
 
 inline std::optional<ID> matched(ID a, ID b) {
     if (a == ID::Never)
