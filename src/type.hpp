@@ -88,10 +88,24 @@ inline bool is_void(ID t) {
     return t == ID::Void;
 }
 
+inline bool is_never(ID t) {
+    return t == ID::Never;
+}
+
+inline std::optional<ID> matched(ID a, ID b) {
+    if (a == ID::Never)
+        return b;
+    else if (b == ID::Never)
+        return a;
+    else if (a == b)
+        return a;
+    return std::nullopt;
+}
+
 //////
 
 struct CompoundType;
-using InnerTypePtr = std::unique_ptr<CompoundType>;
+using InnerTypePtr = std::shared_ptr<CompoundType>;
 
 struct Pointer {
     InnerTypePtr to;
@@ -107,7 +121,7 @@ struct CompoundType : std::variant<ID, Pointer, Array> {
 };
 
 inline InnerTypePtr ptr(CompoundType c) {
-    return std::make_unique<CompoundType>(std::move(c));
+    return std::make_shared<CompoundType>(std::move(c));
 }
 
 std::string to_string(const CompoundType& ty,
@@ -120,31 +134,49 @@ llvm::Type* get_type(const CompoundType& theType,
                      llvm::LLVMContext& context,
                      const UserDefinedTypeTable& utt);
 
-//////
-
-inline std::optional<ID> matched(ID a, ID b) {
-    if (a == ID::Never)
-        return b;
-    else if (b == ID::Never)
-        return a;
-    else if (a == b)
-        return a;
-    return std::nullopt;
+namespace detail {
+inline constexpr bool unwrap_or_false(bool (*f)(ID), const CompoundType& cty) {
+    const ID* const ty = std::get_if<ID>(&cty);
+    return ty && f(*ty);
 }
+}  // namespace detail
+inline constexpr bool is_floating(const CompoundType& ty) {
+    return detail::unwrap_or_false(is_floating, ty);
+}
+inline constexpr bool is_integer(const CompoundType& ty) {
+    return detail::unwrap_or_false(is_integer, ty);
+}
+inline constexpr bool is_arithmetic(const CompoundType& ty) {
+    return detail::unwrap_or_false(is_arithmetic, ty);
+}
+inline constexpr bool is_user_defined(const CompoundType& ty) {
+    return detail::unwrap_or_false(is_user_defined, ty);
+}
+inline bool is_void(const CompoundType& ty) {
+    return detail::unwrap_or_false(is_void, ty);
+}
+inline bool is_never(const CompoundType& ty) {
+    return detail::unwrap_or_false(is_never, ty);
+}
+
+std::optional<CompoundType> matched(const CompoundType& a,
+                                    const CompoundType& b);
+
+//////
 
 class StructFields {
    public:
     StructFields(const ast::StructDef& def);
 
     std::optional<std::int32_t> indexOf(llvm::StringRef name) const;
-    std::optional<Type::ID> typeOf(llvm::StringRef name) const;
+    std::optional<Type::CompoundType> typeOf(llvm::StringRef name) const;
 
     struct Field {
-        explicit Field(std::string n, std::int32_t i, Type::ID t)
-            : name{std::move(n)}, idx{i}, type{t} {}
+        explicit Field(std::string n, std::int32_t i, Type::CompoundType t)
+            : name{std::move(n)}, idx{i}, type{std::move(t)} {}
         std::string name;
         std::int32_t idx;
-        Type::ID type;
+        Type::CompoundType type;
     };
 
    private:
@@ -178,13 +210,32 @@ class UserDefinedTypeTable {
     std::optional<std::reference_wrapper<const TypeRecord>> get(
           Type::ID id_) const;
     std::optional<std::reference_wrapper<const TypeRecord>> get(
+          Type::CompoundType cty) const {
+        return unwrap_or_none([this](const Type::ID id_) { return get(id_); },
+                              cty);
+    }
+    std::optional<std::reference_wrapper<const TypeRecord>> get(
           llvm::StructType* type) const;
     std::optional<std::reference_wrapper<const std::string>> get_name(
           Type::ID id_) const;
     std::optional<std::reference_wrapper<const std::string>> get_name(
+          Type::CompoundType cty) const {
+        return unwrap_or_none(
+              [this](const Type::ID id_) { return get_name(id_); }, cty);
+    }
+    std::optional<std::reference_wrapper<const std::string>> get_name(
           llvm::StructType* type) const;
 
    private:
+    template <typename MemFn>
+    std::invoke_result_t<MemFn, Type::ID> unwrap_or_none(
+          MemFn fn,
+          const Type::CompoundType& cty) const {
+        if (const ID* const ty = std::get_if<ID>(&cty))
+            return std::invoke(fn, *ty);
+        return std::nullopt;
+    }
+
     std::reference_wrapper<llvm::LLVMContext> context;
 
     llvm::StringMap<TypeRecord> ids;

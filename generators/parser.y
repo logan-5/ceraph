@@ -45,7 +45,8 @@ YY_DECL;
 %parse-param {sema::GetType& typechecker}
 %lex-param {const LexerContext& codegen}
 
-%type <Type::ID> BUILTIN_NONVOID_TYPE USER_DEFINED_TYPE nonvoid_type type_or_void
+%type <Type::ID> BUILTIN_NONVOID_TYPE USER_DEFINED_TYPE
+%type <Type::CompoundType> nonvoid_type type_or_void
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression postfix_expression
 %type <ast::Node> equality_expression relational_expression and_expression or_expression flow_expression
 %type <ast::Node> CONSTANT STRING_LITERAL
@@ -172,7 +173,7 @@ block: '{' block_statements '}' { $$ = ast::Block{std::move($2)}; };
 expression_statement: expression ';' { $$ = std::move($1); };
 null_statement: ';' { $$ = ast::NullStmt{}; };
 
-declaration: nonvoid_type IDENTIFIER '=' expression ';' { $$ = ast::Declaration{$1, std::move($2), ptr($4)}; }
+declaration: nonvoid_type IDENTIFIER '=' expression ';' { $$ = ast::Declaration{std::move($1), std::move($2), ptr($4)}; }
     | LET IDENTIFIER '=' expression ';' { $$ = ast::Declaration{std::nullopt, std::move($2), ptr($4)}; }
     ;
 assignment: flow_expression '=' expression { $$ = ast::Assignment{ptr($1), ptr($3)}; };
@@ -241,8 +242,8 @@ empty_param_list: | VOID;
 param_list: param { $$ = vec($1); } 
     | param_list ',' param { $1.push_back(std::move($3)); $$ = std::move($1); }
     ;
-param: nonvoid_type IDENTIFIER { $$ = {$1, std::move($2)}; }
-    | nonvoid_type { $$ = {$1, std::nullopt}; }
+param: nonvoid_type IDENTIFIER { $$ = {std::move($1), std::move($2)}; }
+    | nonvoid_type { $$ = {std::move($1), std::nullopt}; }
     ;
 
 function_def: function_proto block[body] { $$ = ast::FunctionDef{std::move($1), ptr($body)}; };
@@ -255,7 +256,7 @@ call_arg_list: call_arg { $$ = vec($1); }
     ;
 call_arg: expression { $$ = ptr($1); };
 
-type_or_void: nonvoid_type { $$ = $1; } | VOID { $$ = Type::ID::Void; };
+type_or_void: nonvoid_type { $$ = std::move($1); } | VOID { $$ = Type::ID::Void; };
 nonvoid_type: BUILTIN_NONVOID_TYPE { $$ = $1; } | USER_DEFINED_TYPE { $$ = $1; };
 
 if_else: IF expression[cond] block[then] { $$ = ast::IfElse{ptr($cond), ptr($then)}; }
@@ -280,7 +281,7 @@ struct_fields: struct_field { $$ = vec(std::move($1)); }
     }
     ;
 
-struct_field: nonvoid_type IDENTIFIER ';' { $$ = ast::StructDef::Field{std::move($2), $1}; };
+struct_field: nonvoid_type IDENTIFIER ';' { $$ = ast::StructDef::Field{std::move($2), std::move($1)}; };
 
 struct_value: USER_DEFINED_TYPE '.' '{' '}' { $$ = ast::StructValue{$1}; };
 

@@ -22,7 +22,7 @@ auto err(const llvm::Twine& desc) {
 
 char TypeCheckError::ID = 1;
 
-auto GetType::ret(const std::optional<Type::ID> ty,
+auto GetType::ret(const std::optional<Type::CompoundType> ty,
                   const llvm::Twine& err) const -> ReturnType {
     if (ty)
         return *ty;
@@ -193,7 +193,7 @@ auto GetType::operator()(const ast::Block& block) const -> ReturnType {
     const auto lastStatementIt = std::prev(block.stmts.end());
     for (auto it = block.stmts.begin(); it != lastStatementIt; ++it) {
         DECLARE_OR_RETURN(stmt, (*it)->visit(*this));
-        if (stmt == Type::ID::Never)
+        if (Type::is_never(stmt))
             return stmt;
     }
 

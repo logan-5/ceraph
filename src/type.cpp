@@ -156,6 +156,35 @@ llvm::Type* get_type(const CompoundType& theType,
     return std::visit(GetLLVMTypeVisitor{context, utt}, theType);
 }
 
+struct CompoundMatched {
+    using ReturnType = std::optional<CompoundType>;
+
+    ReturnType operator()(const ID a, const ID b) const {
+        return matched(a, b);
+    }
+    ReturnType operator()(const Pointer& a, const Pointer& b) const {
+        // TODO void* and stuff?
+        return std::visit(*this, *a.to, *b.to);
+    }
+    ReturnType operator()(const Array& a, const Array& b) const {
+        if (a.size == b.size) {
+            return std::visit(*this, *a.of, *b.of);
+        }
+        return std::nullopt;
+    }
+
+    // mismatch
+    template <typename T, typename U>
+    ReturnType operator()(const T&, const U&) const {
+        return std::nullopt;
+    }
+};
+
+std::optional<CompoundType> matched(const CompoundType& a,
+                                    const CompoundType& b) {
+    return std::visit(CompoundMatched{}, a, b);
+}
+
 //////////////////////////
 // user-defined type table
 
@@ -248,7 +277,8 @@ std::optional<std::int32_t> StructFields::indexOf(llvm::StringRef name) const {
     return it == fields.end() ? std::nullopt : std::optional{it->idx};
 }
 
-std::optional<Type::ID> StructFields::typeOf(llvm::StringRef name) const {
+std::optional<Type::CompoundType> StructFields::typeOf(
+      llvm::StringRef name) const {
     const auto it = this->find(name);
     return it == fields.end() ? std::nullopt : std::optional{it->type};
 }

@@ -25,7 +25,6 @@ NodePtr make_nodeptr(Args&&... args) {
 
 template <typename Rep, Type::ID Ty>
 struct Literal {
-    // constexpr Literal() noexcept = default;
     template <typename T>
     Literal(T&& t) : rep{std::forward<T>(t)} {}
 
@@ -71,11 +70,11 @@ struct BinaryExpr {
 };
 
 struct FunctionProto {
-    Type::ID returnType;
+    Type::CompoundType returnType;
     std::string name;
 
     struct Arg {
-        Type::ID type;
+        Type::CompoundType type;
         std::optional<std::string> name;
     };
     using ArgList = std::vector<Arg>;
@@ -120,7 +119,7 @@ struct Block {
 };
 
 struct Declaration {
-    std::optional<Type::ID> type;
+    std::optional<Type::CompoundType> type;
     std::string name;
     NodePtr init;
 };
@@ -191,7 +190,7 @@ struct StructDef {
 
     struct Field {
         std::string name;
-        Type::ID type;
+        Type::CompoundType type;
     };
     using Fields = std::vector<Field>;
     Fields fields;
