@@ -126,7 +126,7 @@ struct Declaration {
 };
 
 struct Assignment {
-    std::string dest;
+    NodePtr dest;
     NodePtr rhs;
 };
 

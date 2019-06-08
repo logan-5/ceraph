@@ -11,6 +11,11 @@ void f() {
     } else {
         43
     };
+    int b = if x < y {
+        a
+    } else {
+        a + 1
+    };
 
     while int i = 0; i < a {
         bar(i);
@@ -18,9 +23,15 @@ void f() {
     };
     bar(z);
 
-    int b = if x < 0 {
+    int c = if x < 0 {
         return;
     } else {
         0
+    };
+
+    int d = if x < y {
+        a
+    } else {
+        c
     };
 }

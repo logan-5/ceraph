@@ -77,6 +77,44 @@ struct GetType {
                    const llvm::Twine& errorMsg) const;
 };
 
+enum class ValueCategory {
+    None,
+    LValue,
+    RValue,
+};
+
+struct GetValueCategory {
+    template <typename Rep, Type::ID Ty>
+    ValueCategory operator()(const ast::Literal<Rep, Ty>&) const {
+        return ValueCategory::RValue;
+    }
+
+    ValueCategory operator()(const ast::Identifier& ident) const;
+
+    ValueCategory operator()(const ast::UnaryExpr& unary) const;
+    ValueCategory operator()(const ast::BinaryExpr& binary) const;
+    ValueCategory operator()(const ast::FunctionProto& proto) const;
+    ValueCategory operator()(const ast::FunctionDef& func) const;
+    ValueCategory operator()(const ast::FunctionCall& call) const;
+
+    ValueCategory operator()(const ast::IfElse& ifElse) const;
+    ValueCategory operator()(const ast::While& while_) const;
+
+    ValueCategory operator()(const ast::LogicalAnd& a) const;
+    ValueCategory operator()(const ast::LogicalOr& o) const;
+
+    ValueCategory operator()(const ast::NullStmt nullStmt) const;
+    ValueCategory operator()(const ast::Block& block) const;
+
+    ValueCategory operator()(const ast::Declaration& decl) const;
+    ValueCategory operator()(const ast::Assignment& assign) const;
+
+    ValueCategory operator()(const ast::Return& ret) const;
+
+    ValueCategory operator()(const ast::StructValue& v) const;
+    ValueCategory operator()(const ast::StructMemberAccess& m) const;
+};
+
 }  // namespace sema
 
 #endif

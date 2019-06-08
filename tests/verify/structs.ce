@@ -35,3 +35,19 @@ int baz() {
 int quux() {
     return make_c().a.y;
 }
+
+int the_one_after_quux() {
+    C c = C.{};
+    c.a.x = 15;
+    c.a.y = 16;
+    return c.a.x + c.a.y;
+}
+
+int blah(bool b) {
+    A a = A.{};
+    (if b { a.x } else { a.y }) = 12;
+    A a2 = A.{};
+    (if b { a } else { a2 }).x = 15;
+
+    return -1;
+}

@@ -84,6 +84,8 @@ struct Visitor {
     ReturnType operator()(const ast::StructValue& v) const;
     ReturnType operator()(const ast::StructMemberAccess& m) const;
 
+    static llvm::Type* getLoadedType(llvm::Value* val);
+
    private:
     llvm::Value* make_floating_constant(Type::ID type,
                                         const llvm::APFloat& value) const;
@@ -95,7 +97,6 @@ struct Visitor {
 
     llvm::Value* load(llvm::Value* val) const;
     ReturnType load(ReturnType&& ret) const;
-    llvm::Type* getLoadedType(llvm::Value* val) const;
 };
 
 }  // namespace codegen

@@ -137,8 +137,10 @@ struct Dump {
 
     void operator()(const Assignment& assign) const {
         indent();
-        ostr << "[assignment]: var '" << assign.dest << "', new value:\n";
+        ostr << "[assignment]: var '\n";
         Dump next{indentLevel + 1, ostr};
+        std::visit(next, *assign.dest);
+        ostr << "', new value:\n";
         std::visit(next, *assign.rhs);
     }
 

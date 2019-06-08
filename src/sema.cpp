@@ -211,8 +211,10 @@ auto GetType::operator()(const ast::Declaration& decl) const -> ReturnType {
     return Type::ID::Void;
 }
 auto GetType::operator()(const ast::Assignment& assign) const -> ReturnType {
-    UNWRAP_OR_RETURN(dest, symbols->get(assign.dest),
-                     Twine("undeclared identifier '") + assign.dest + "'");
+    if (assign.dest->visit(GetValueCategory{}) != ValueCategory::LValue) {
+        return err("value not assignable");
+    }
+    DECLARE_OR_RETURN(dest, assign.dest->visit(*this));
     DECLARE_OR_RETURN(rhs, assign.rhs->visit(*this));
     if (Type::matched(dest, rhs).has_value()) {
         return Type::ID::Void;
@@ -248,4 +250,81 @@ auto GetType::operator()(const ast::StructMemberAccess& m) const -> ReturnType {
     }
     return *fieldType;
 }
+
+///////////////////////////////////////
+
+ValueCategory GetValueCategory::operator()(const ast::Identifier& ident) const {
+    return ValueCategory::LValue;
+}
+
+ValueCategory GetValueCategory::operator()(const ast::UnaryExpr& unary) const {
+    return ValueCategory::RValue;
+}
+ValueCategory GetValueCategory::operator()(
+      const ast::BinaryExpr& binary) const {
+    return ValueCategory::RValue;
+}
+ValueCategory GetValueCategory::operator()(
+      const ast::FunctionProto& proto) const {
+    return ValueCategory::None;
+}
+ValueCategory GetValueCategory::operator()(const ast::FunctionDef& func) const {
+    return ValueCategory::None;
+}
+ValueCategory GetValueCategory::operator()(
+      const ast::FunctionCall& call) const {
+    return ValueCategory::RValue;
+}
+
+ValueCategory GetValueCategory::operator()(const ast::IfElse& ifElse) const {
+    if (!ifElse.elseBranch)
+        return ValueCategory::RValue;
+    const auto then = ifElse.thenBranch->visit(*this);
+    const auto else_ = ifElse.elseBranch->visit(*this);
+    return (then == ValueCategory::LValue && else_ == ValueCategory::LValue)
+                 ? ValueCategory::LValue
+                 : ValueCategory::RValue;
+}
+ValueCategory GetValueCategory::operator()(const ast::While& while_) const {
+    return ValueCategory::RValue;
+}
+
+ValueCategory GetValueCategory::operator()(const ast::LogicalAnd& a) const {
+    return ValueCategory::RValue;
+}
+ValueCategory GetValueCategory::operator()(const ast::LogicalOr& o) const {
+    return ValueCategory::RValue;
+}
+
+ValueCategory GetValueCategory::operator()(const ast::NullStmt nullStmt) const {
+    return ValueCategory::None;
+}
+ValueCategory GetValueCategory::operator()(const ast::Block& block) const {
+    if (block.stmts.empty())
+        return ValueCategory::None;
+    return block.stmts.back()->visit(*this);
+}
+
+ValueCategory GetValueCategory::operator()(const ast::Declaration& decl) const {
+    return ValueCategory::None;
+}
+ValueCategory GetValueCategory::operator()(
+      const ast::Assignment& assign) const {
+    return ValueCategory::None;
+}
+
+ValueCategory GetValueCategory::operator()(const ast::Return& ret) const {
+    return ValueCategory::RValue;
+}
+
+ValueCategory GetValueCategory::operator()(const ast::StructValue& v) const {
+    return ValueCategory::RValue;
+}
+ValueCategory GetValueCategory::operator()(
+      const ast::StructMemberAccess& m) const {
+    const auto structCategory = m.lhs->visit(*this);
+    return structCategory == ValueCategory::LValue ? ValueCategory::LValue
+                                                   : ValueCategory::RValue;
+}
+
 }  // namespace sema

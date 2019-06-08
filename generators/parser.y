@@ -175,7 +175,7 @@ null_statement: ';' { $$ = ast::NullStmt{}; };
 declaration: nonvoid_type IDENTIFIER '=' expression ';' { $$ = ast::Declaration{$1, std::move($2), ptr($4)}; }
     | LET IDENTIFIER '=' expression ';' { $$ = ast::Declaration{std::nullopt, std::move($2), ptr($4)}; }
     ;
-assignment: IDENTIFIER '=' expression { $$ = ast::Assignment{std::move($1), ptr($3)}; };
+assignment: flow_expression '=' expression { $$ = ast::Assignment{ptr($1), ptr($3)}; };
 
 return_statement: RETURN ';' { $$ = ast::Return{}; }
     | RETURN expression ';' { $$ = ast::Return{ptr($2)}; }

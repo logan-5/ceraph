@@ -1,6 +1,7 @@
 #include "codegen.hpp"
 
 #include "scope.hpp"
+#include "sema.hpp"
 #include "type.hpp"
 #include "util.hpp"
 
@@ -25,6 +26,13 @@ bool isVoid(llvm::Value* v) {
 
 bool breaksOrReturns(const llvm::BasicBlock* const block) {
     return block->getTerminator();
+}
+
+std::string str(llvm::Type* type) {
+    std::string s;
+    llvm::raw_string_ostream ostr{s};
+    type->print(ostr);
+    return s;
 }
 }  // namespace
 
@@ -349,6 +357,13 @@ ReturnType setUpMergeBlock(llvm::Value* const thenValue,
 }  // namespace
 
 ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
+    auto loadIfRValue = [rvalue = sema::GetValueCategory{}(ifElse) ==
+                                  sema::ValueCategory::RValue,
+                         this](ReturnType&& val) -> ReturnType {
+        if (auto err = val.takeError())
+            return std::move(err);
+        return rvalue ? this->load(std::move(val)) : std::move(val);
+    };
     DECLARE_OR_RETURN_NOVOID(cond, load(ifElse.cond->visit(*this)));
     if (cond->getType() != Type::get_type(Type::ID::Bool,
                                           instance.impl->context,
@@ -370,7 +385,8 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
     auto* const branchInst = builder.CreateCondBr(cond, thenBlock, elseBlock);
     (void)branchInst;
     builder.SetInsertPoint(thenBlock);
-    DECLARE_OR_RETURN(thenBranch, load(ifElse.thenBranch->visit(*this)));
+    DECLARE_OR_RETURN(thenBranch,
+                      loadIfRValue(ifElse.thenBranch->visit(*this)));
     auto* const thenBlockEnd = builder.GetInsertBlock();
 
     func->getBasicBlockList().push_back(elseBlock);
@@ -379,9 +395,10 @@ ReturnType Visitor::operator()(const ast::IfElse& ifElse) const {
     if (!hasElseBranch && !isVoid(thenBranch)) {
         return err("'if' without 'else' must evaluate to void");
     }
-    DECLARE_OR_RETURN(elseBranch, hasElseBranch
-                                        ? load(ifElse.elseBranch->visit(*this))
-                                        : ReturnType{nullptr});
+    DECLARE_OR_RETURN(elseBranch,
+                      hasElseBranch
+                            ? loadIfRValue(ifElse.elseBranch->visit(*this))
+                            : ReturnType{nullptr});
     auto* const elseBlockEnd = builder.GetInsertBlock();
     func->getBasicBlockList().push_back(mergeBlock);
 
@@ -544,11 +561,15 @@ ReturnType Visitor::operator()(const ast::Declaration& decl) const {
     } else if (init->getType()->isVoidTy()) {
         return err("variable initializer cannot have void type");
     }
-    if (decl.type.has_value() &&
-        Type::get_type(*decl.type, instance.impl->context,
-                       instance.impl->typeTable) != init->getType()) {
-        return err(
-              "type of initializer does not match variable's specified type");
+    if (decl.type.has_value()) {
+        if (const auto declT = Type::get_type(
+                  *decl.type, instance.impl->context, instance.impl->typeTable);
+            declT != init->getType()) {
+            return err(
+                  "type of initializer does not match variable's specified "
+                  "type (" +
+                  str(init->getType()) + " vs " + str(declT) + ")");
+        }
     }
     auto* const t = init->getType();
 
@@ -562,26 +583,22 @@ ReturnType Visitor::operator()(const ast::Declaration& decl) const {
 }
 
 ReturnType Visitor::operator()(const ast::Assignment& assign) const {
-    auto& symtable = instance.impl->symtable;
-    auto* const alloca = symtable.get(assign.dest);
-    if (!alloca) {
-        return err(llvm::Twine("assignment to unknown identifier '") +
-                   assign.dest + "'");
-    }
-
+    DECLARE_OR_RETURN(dest, assign.dest->visit(*this));
     DECLARE_OR_RETURN(rhs, assign.rhs->visit(*this));
     if (!rhs) {
         // to have typechecked and still gotten this far, the rhs must
         // have been of type Never. so this assignment will never actually
         // happen
-        return llvm::UndefValue::get(alloca->getAllocatedType());
+        return llvm::UndefValue::get(getLoadedType(dest));
     }
     auto& builder = instance.impl->builder;
 
-    if (alloca->getAllocatedType() != rhs->getType()) {
-        return err("cannot assign new value, type mismatch");
+    if (auto* const destType = getLoadedType(dest);
+        destType != rhs->getType()) {
+        return err("cannot assign new value, type mismatch (" + str(destType) +
+                   " vs " + str(rhs->getType()) + ")");
     }
-    builder.CreateStore(rhs, alloca);
+    builder.CreateStore(rhs, dest);
     return nullptr;
 }
 
@@ -688,9 +705,20 @@ Value* Visitor::make_integer_constant(Type::ID type,
     return llvm::ConstantInt::get(t, value);
 }
 
+namespace {
+bool needsLoad(llvm::Value* val) {
+    if (llvm::isa<llvm::AllocaInst>(val) ||
+        llvm::isa<llvm::GetElementPtrInst>(val))
+        return true;
+    if (auto* const phi = llvm::dyn_cast<llvm::PHINode>(val)) {
+        return std::all_of(phi->incoming_values().begin(),
+                           phi->incoming_values().end(), needsLoad);
+    }
+    return false;
+}
+}  // namespace
 llvm::Value* Visitor::load(llvm::Value* val) const {
-    if (val && (llvm::isa<llvm::AllocaInst>(val) ||
-                llvm::isa<llvm::GetElementPtrInst>(val))) {
+    if (val && needsLoad(val)) {
         return instance.impl->builder.CreateLoad(val, val->getName() + "_load");
     }
     return val;
@@ -700,10 +728,15 @@ ReturnType Visitor::load(ReturnType&& ret) const {
         return std::move(err);
     return load(*ret);
 }
-llvm::Type* Visitor::getLoadedType(llvm::Value* val) const {
-    if (val && (llvm::isa<llvm::AllocaInst>(val) ||
-                llvm::isa<llvm::GetElementPtrInst>(val))) {
+llvm::Type* Visitor::getLoadedType(llvm::Value* val) {
+    assert(val);
+    if (llvm::isa<llvm::AllocaInst>(val) ||
+        llvm::isa<llvm::GetElementPtrInst>(val)) {
         return llvm::cast<llvm::PointerType>(val->getType())->getElementType();
+    }
+    if (auto* const phi = llvm::dyn_cast<llvm::PHINode>(val)) {
+        assert(phi->getNumIncomingValues() > 0);
+        return getLoadedType(*phi->incoming_values().begin());
     }
     return val->getType();
 }
