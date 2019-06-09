@@ -21,6 +21,11 @@ struct Dump {
         ostr << lit.getType() << ": " << lit.rep;
     }
 
+    void operator()(const NullLiteral n) const {
+        indent();
+        ostr << "null";
+    }
+
     void operator()(const Identifier& ident) const {
         indent();
         ostr << "[ident] " << ident.name;

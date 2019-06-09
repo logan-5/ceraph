@@ -1,0 +1,19 @@
+int* get_ptr();
+double* get_another_ptr();
+float** get_float_ptr_ptr();
+
+double* f() {
+    int* ip = get_ptr();
+
+    double* dp = get_another_ptr();
+
+    float** fpp = get_float_ptr_ptr();
+
+    let fpp2 = fpp;
+
+    double* ret = dp; /*null;*/
+
+    null;
+
+    return ret;
+}

@@ -52,6 +52,7 @@ IS			(u|U|l|L)*
 "if"			{ count(); return token::IF; }
 "let"           { count(); return token::LET; }
 "long"			{ count(); return token::LONG; }
+"null"			{ count(); yylval->build<ast::Node>(ast::NullLiteral()); return token::NULL_LITERAL; }
 "or"            { count(); return token::LOGICAL_OR; }
 "register"		{ count(); return token::REGISTER; }
 "return"		{ count(); return token::RETURN; }

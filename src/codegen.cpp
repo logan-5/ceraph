@@ -90,6 +90,13 @@ ReturnType Visitor::operator()(const ast::StringLiteral& str) const {
     return nullptr;
 }
 
+ReturnType Visitor::operator()(const ast::NullLiteral) const {
+    auto* const zero = cantFail(this->operator()(ast::IntLiteral{0}));
+    auto* const nullType = Type::get_type(
+          Type::ID::Null, instance.impl->context, instance.impl->typeTable);
+    return instance.impl->builder.CreateIntToPtr(zero, nullType, "null");
+}
+
 namespace {
 ReturnType negate(CodeGenInstance::Impl& instance, Value* operand) {
     if (operand->getType()->isIntegerTy()) {

@@ -29,6 +29,10 @@ llvm::Type* get_type(ID theType,
         case ID::Never:
             return nullptr;
 
+        case ID::Null:
+            return llvm::PointerType::get(llvm::IntegerType::get(theContext, 8),
+                                          0);
+
         case ID::Bool:
             return llvm::IntegerType::get(theContext,
                                           num_bits<ID::Bool>::value);
@@ -80,6 +84,8 @@ std::string to_string(ID ty, const UserDefinedTypeTable* utt) {
     switch (ty) {
         case ID::Never:
             return "never";
+        case ID::Null:
+            return "null";
         case ID::Bool:
             return "bool";
         case ID::Int:
@@ -164,11 +170,14 @@ struct CompoundMatched {
     }
     ReturnType operator()(const Pointer& a, const Pointer& b) const {
         // TODO void* and stuff?
-        return std::visit(*this, *a.to, *b.to);
+        if (auto inner = std::visit(*this, *a.to, *b.to))
+            return Pointer{ptr(std::move(*inner))};
+        return std::nullopt;
     }
     ReturnType operator()(const Array& a, const Array& b) const {
         if (a.size == b.size) {
-            return std::visit(*this, *a.of, *b.of);
+            if (auto elem = std::visit(*this, *a.of, *b.of))
+                return Array{ptr(std::move(*elem)), a.size};
         }
         return std::nullopt;
     }

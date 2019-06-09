@@ -23,10 +23,12 @@ NodePtr make_nodeptr(Args&&... args) {
     return std::make_shared<Node>(std::forward<Args>(args)...);
 }
 
-template <typename Rep, Type::ID Ty>
+template <typename Rep_, Type::ID Ty>
 struct Literal {
+    using Rep = Rep_;
+
     template <typename T>
-    Literal(T&& t) : rep{std::forward<T>(t)} {}
+    explicit Literal(T&& t) : rep{std::forward<T>(t)} {}
 
     static constexpr Type::ID getType() noexcept { return Ty; }
     Rep rep;
@@ -34,6 +36,11 @@ struct Literal {
 using StringLiteral = Literal<std::string, Type::ID::StringLiteral>;
 using FloatLiteral = Literal<float, Type::ID::Float>;
 using DoubleLiteral = Literal<double, Type::ID::Double>;
+
+// TODO some kinda EBO wrapper for Literal's so empty Rep's don't take up space
+struct NullLiteral : Literal<std::monostate, Type::ID::Null> {
+    explicit NullLiteral() : Literal{Literal::Rep{}} {}
+};
 
 template <typename Rep, Type::ID Ty>
 struct IntegerLiteral : Literal<Rep, Ty> {
@@ -157,6 +164,7 @@ struct Node
                    FloatLiteral,
                    DoubleLiteral,
                    StringLiteral,
+                   NullLiteral,
                    Identifier,
                    UnaryExpr,
                    BinaryExpr,

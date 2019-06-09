@@ -56,6 +56,8 @@ struct Visitor {
                               literal.isSigned()});
     }
 
+    ReturnType operator()(const ast::NullLiteral) const;
+
     ReturnType operator()(const ast::StringLiteral& str) const;
 
     ReturnType operator()(const ast::Identifier& ident) const;

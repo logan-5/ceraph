@@ -28,6 +28,7 @@ class UserDefinedTypeTable;
 
 enum class ID {
     Never,
+    Null,
 
     Bool,
     Int,
@@ -90,6 +91,9 @@ inline bool is_void(ID t) {
 
 inline bool is_never(ID t) {
     return t == ID::Never;
+}
+inline bool is_null(ID t) {
+    return t == ID::Null;
 }
 
 inline std::optional<ID> matched(ID a, ID b) {
@@ -157,6 +161,9 @@ inline bool is_void(const CompoundType& ty) {
 }
 inline bool is_never(const CompoundType& ty) {
     return detail::unwrap_or_false(is_never, ty);
+}
+inline bool is_null(const CompoundType& ty) {
+    return detail::unwrap_or_false(is_null, ty);
 }
 
 std::optional<CompoundType> matched(const CompoundType& a,
