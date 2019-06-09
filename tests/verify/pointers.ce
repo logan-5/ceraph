@@ -1,6 +1,8 @@
 int* get_ptr();
 double* get_another_ptr();
-float** get_float_ptr_ptr();
+float** get_float_ptr_ptr() {
+    return <float**>null;
+}
 
 double* f() {
     int* ip = get_ptr();
@@ -11,9 +13,22 @@ double* f() {
 
     let fpp2 = fpp;
 
-    double* ret = dp; /*null;*/
+    double* ret = <double*>null;
 
     null;
 
     return ret;
+}
+
+struct S {
+    int* i;
+}
+
+struct T {
+    S* s;
+    S********* s2;
+}
+
+void g() {
+    let x = T.{}.s2;
 }

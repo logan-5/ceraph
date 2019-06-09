@@ -157,6 +157,11 @@ struct StructMemberAccess {
     std::string rhs;
 };
 
+struct ExplicitCast {
+    NodePtr operand;
+    Type::CompoundType toType;
+};
+
 struct Node
     : std::variant<NullStmt,
                    BoolLiteral,
@@ -180,7 +185,8 @@ struct Node
                    Assignment,
                    Return,
                    StructValue,
-                   StructMemberAccess> {
+                   StructMemberAccess,
+                   ExplicitCast> {
     using variant::variant;
 
     template <typename Visitor>

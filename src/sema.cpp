@@ -251,6 +251,16 @@ auto GetType::operator()(const ast::StructMemberAccess& m) const -> ReturnType {
     return *fieldType;
 }
 
+auto GetType::operator()(const ast::ExplicitCast& cast) const -> ReturnType {
+    DECLARE_OR_RETURN(operand, cast.operand->visit(*this));
+    if (!Type::is_valid_cast(operand, cast.toType)) {
+        return err(Twine("cannot cast '") +
+                   Type::to_string(operand, &typeTable.get()) + "' to '" +
+                   Type::to_string(cast.toType, &typeTable.get()) + "'");
+    }
+    return cast.toType;
+}
+
 ///////////////////////////////////////
 
 ValueCategory GetValueCategory::operator()(const ast::Identifier& ident) const {
@@ -325,6 +335,11 @@ ValueCategory GetValueCategory::operator()(
     const auto structCategory = m.lhs->visit(*this);
     return structCategory == ValueCategory::LValue ? ValueCategory::LValue
                                                    : ValueCategory::RValue;
+}
+
+ValueCategory GetValueCategory::operator()(
+      const ast::ExplicitCast& cast) const {
+    return ValueCategory::RValue;
 }
 
 }  // namespace sema

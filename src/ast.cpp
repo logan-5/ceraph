@@ -199,6 +199,16 @@ struct Dump {
         indent();
         ostr << "member: " << a.rhs;
     }
+
+    void operator()(const ExplicitCast& cast) const {
+        indent();
+        ostr << "cast:\n";
+        Dump next{indentLevel + 1, ostr};
+        std::visit(next, *cast.operand);
+        ostr << '\n';
+        indent();
+        ostr << "to type: " << cast.toType;
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

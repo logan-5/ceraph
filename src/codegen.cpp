@@ -686,6 +686,20 @@ ReturnType Visitor::operator()(const ast::StructMemberAccess& m) const {
 
 /////
 
+ReturnType Visitor::operator()(const ast::ExplicitCast& cast) const {
+    DECLARE_OR_RETURN(operand, load(cast.operand->visit(*this)));
+    auto* const toType = Type::get_type(cast.toType, instance.impl->context,
+                                        instance.impl->typeTable);
+    if (llvm::isa<llvm::PointerType>(operand->getType()) &&
+        llvm::isa<llvm::PointerType>(toType)) {
+        return instance.impl->builder.CreateBitCast(operand, toType,
+                                                    "explicit_cast");
+    }
+    return err("unimplemented");
+}
+
+/////
+
 llvm::AllocaInst* Visitor::createAllocaInEntryBlock(
       llvm::Type* type,
       const llvm::Twine& name) const {

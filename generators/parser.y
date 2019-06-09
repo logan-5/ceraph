@@ -198,6 +198,7 @@ postfix_expression: primary_expression { $$ = std::move($1); }
 
 unary_expression: postfix_expression { $$ = std::move($1); }
     | '-' postfix_expression { $$ = make_unary<Operator::Unary::Minus>($2); }
+    | '<' nonvoid_type[type] '>' unary_expression[expr] { $$ = ast::ExplicitCast{ptr($expr), std::move($type)}; }
     ;
 
 product_expression: unary_expression { $$ = std::move($1); }

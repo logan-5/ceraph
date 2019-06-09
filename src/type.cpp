@@ -119,7 +119,7 @@ std::string to_string(ID ty, const UserDefinedTypeTable* utt) {
 // compound types
 
 struct ToStringVisitor {
-    using ReturnType = llvm::Twine;
+    using ReturnType = std::string;
 
     const UserDefinedTypeTable* table;
 
@@ -129,13 +129,13 @@ struct ToStringVisitor {
     }
     ReturnType operator()(const Array& arr) const {
         return ReturnType{"array of "} + std::visit(*this, *arr.of) +
-               ", size " + ReturnType{arr.size};
+               ", size " + std::to_string(arr.size);
     }
 };
 
 std::string to_string(const CompoundType& ty,
                       const UserDefinedTypeTable* table) {
-    return std::visit(ToStringVisitor{table}, ty).str();
+    return std::visit(ToStringVisitor{table}, ty);
 }
 
 struct GetLLVMTypeVisitor {
@@ -192,6 +192,29 @@ struct CompoundMatched {
 std::optional<CompoundType> matched(const CompoundType& a,
                                     const CompoundType& b) {
     return std::visit(CompoundMatched{}, a, b);
+}
+
+struct IsValidCompoundCast {
+    using ReturnType = bool;
+
+    ReturnType operator()(const ID from, const ID to) const {
+        return is_valid_cast(from, to);
+    }
+
+    ReturnType operator()(const ID from, const Pointer& to) const {
+        return is_null(from);
+    }
+    // TODO add more valid casts here
+
+    // no
+    template <typename T, typename U>
+    ReturnType operator()(const T&, const U&) const {
+        return false;
+    }
+};
+
+bool is_valid_cast(const CompoundType& from, const CompoundType& to) {
+    return std::visit(IsValidCompoundCast{}, from, to);
 }
 
 //////////////////////////

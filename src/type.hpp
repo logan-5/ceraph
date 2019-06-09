@@ -106,6 +106,10 @@ inline std::optional<ID> matched(ID a, ID b) {
     return std::nullopt;
 }
 
+inline bool is_valid_cast(const ID from, const ID to) {
+    return false;  // TODO
+}
+
 //////
 
 struct CompoundType;
@@ -168,6 +172,8 @@ inline bool is_null(const CompoundType& ty) {
 
 std::optional<CompoundType> matched(const CompoundType& a,
                                     const CompoundType& b);
+
+bool is_valid_cast(const CompoundType& from, const CompoundType& to);
 
 //////
 
