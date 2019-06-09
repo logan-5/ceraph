@@ -1,0 +1,2 @@
+void expect(bool);
+void expect_fail(bool);

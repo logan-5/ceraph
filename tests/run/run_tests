@@ -1,0 +1,30 @@
+#/usr/bin/env bash
+
+# https://stackoverflow.com/questions/59895/get-the-source-directory-of-a-bash-script-from-within-the-script-itself
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+if [ ! -e $DIR/run_test_defs.o ]; then
+    cc $DIR/run_test_defs.c -c -o $DIR/run_test_defs.o
+fi
+
+COMPILER=$1
+FILE=$2
+
+TMP_OBJ="$DIR/__tmp__"
+TMP_EXE="$DIR/__tmp__exec__"
+
+set -e
+
+SRC=$(cat $DIR/run_test_header.he)$(cat $FILE)
+
+$COMPILER <<<$SRC | llvm-as | llc -filetype=obj > $TMP_OBJ
+ld -lc $TMP_OBJ $DIR/run_test_defs.o -o $TMP_EXE
+
+set +e
+
+$TMP_EXE
+RESULT=$?
+
+rm $TMP_OBJ $TMP_EXE
+
+exit $RESULT

@@ -1,0 +1,5 @@
+int main() {
+    expect(true);
+    expect_fail(false);
+    0
+}

@@ -93,6 +93,14 @@ set(VERIFY_TEST_DIR ${TEST_DIR}/verify)
 file(GLOB verify_tests ${VERIFY_TEST_DIR}/*.ce)
 foreach(verify_test ${verify_tests})
     get_filename_component(test_name ${verify_test} NAME_WE)
-    add_test(NAME ${test_name}
+    add_test(NAME verify-${test_name}
             COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/verify_llvm $<TARGET_FILE:ceraph> ${verify_test})
+endforeach()
+
+set(RUN_TEST_DIR ${TEST_DIR}/run)
+file(GLOB run_tests ${RUN_TEST_DIR}/*.ce)
+foreach(run_test ${run_tests})
+    get_filename_component(test_name ${run_test} NAME_WE)
+    add_test(NAME run-${test_name}
+            COMMAND bash ${RUN_TEST_DIR}/run_tests $<TARGET_FILE:ceraph> ${run_test})
 endforeach()
