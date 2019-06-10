@@ -43,8 +43,18 @@ int main() {
     expect(*p == 5);
     expect(**q == 5);
 
+    *p = 6;
+    expect(*p == 6);
+    expect(x == 6);
+    expect(**q == 6);
+
+    **q = 7;
+    expect(x == 7);
+    expect(*p == 7);
+    expect(*p == **q);
+
     expect(*p == deref(p));
-    expect(deref_and_incr(p) == 6);
+    expect(deref_and_incr(p) == 8);
     expect(deref_and_incr(&x) == deref_and_incr(p));
 
     S s = S.{};

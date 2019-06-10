@@ -658,14 +658,11 @@ ReturnType Visitor::operator()(const ast::Dereference& deref) const {
         return err(llvm::Twine("cannot dereference non-pointer type ('") +
                    str(operand->getType()) + "')");
     }
-    if (llvm::isa<llvm::CompositeType>(ptr->getElementType())) {
-        // defer loading until the next call to this->load(), by wrapping
-        // operand in a zero GEP
-        auto* const zero = cantFail(this->operator()(ast::IntLiteral{0}));
-        const std::array indices{zero};
-        return instance.impl->builder.CreateGEP(operand, indices, "deref_gep");
-    }
-    return instance.impl->builder.CreateLoad(operand, "dereference");
+    // defer loading until the next call to this->load(), by wrapping
+    // operand in a zero GEP
+    auto* const zero = cantFail(this->operator()(ast::IntLiteral{0}));
+    return instance.impl->builder.CreateGEP(operand, llvm::ArrayRef{zero},
+                                            "deref_gep");
 }
 
 /////

@@ -10,8 +10,8 @@ fi
 COMPILER=$1
 FILE=$2
 
-TMP_OBJ="$DIR/__tmp__"
-TMP_EXE="$DIR/__tmp__exec__"
+TMP_OBJ="$DIR/.__ceraph_tmp__"
+TMP_EXE="$DIR/.__ceraph_tmp__exec__"
 
 set -e
 

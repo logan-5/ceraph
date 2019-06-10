@@ -37,4 +37,9 @@ void g() {
 
     int i = 5;
     int* p = &i;
+
+    *p = 6;
+
+    T* t = get_t_ptr();
+    *t->s->i = 0;
 }
