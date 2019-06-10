@@ -11,6 +11,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/NoFolder.h"
 #include "llvm/IR/Verifier.h"
 
 using llvm::Expected;
@@ -49,6 +50,9 @@ std::string str(llvm::Type* type) {
     }
 
 namespace codegen {
+namespace {
+bool needsLoad(llvm::Value* val);
+}
 
 char CodeGenError::ID = 0;
 auto err(const llvm::Twine& desc) {
@@ -625,6 +629,45 @@ ReturnType Visitor::operator()(const ast::Return& ret) const {
                  : instance.impl->builder.CreateRet(value);
 }
 
+ReturnType Visitor::operator()(const ast::AddressOf& addr) const {
+    DECLARE_OR_RETURN(operand, addr.operand->visit(*this));
+    if (!llvm::isa<llvm::PointerType>(operand->getType())) {
+        return err(llvm::Twine("trying to take the address of an rvalue ('") +
+                   str(operand->getType()) +
+                   "')? this shouldn't have typechecked");
+    }
+    // because we defer `load`ing until the value is absolutely needed, we
+    // already have a pointer here. so we just need to wrap it in something --
+    // anything that's not an alloca, GEP, or PHI (which are loaded by calls to
+    // this->load())
+    auto& builder = instance.impl->builder;
+    auto* const nullCast = builder.CreateBitCast(
+          operand,
+          Type::get_type(Type::ID::Null, instance.impl->context,
+                         instance.impl->typeTable),
+          "null_cast");
+    auto* const noOpCast =
+          builder.CreateBitCast(nullCast, operand->getType(), "addr_of");
+    assert(!needsLoad(noOpCast));
+    return noOpCast;
+}
+ReturnType Visitor::operator()(const ast::Dereference& deref) const {
+    DECLARE_OR_RETURN(operand, load(deref.operand->visit(*this)));
+    auto* const ptr = llvm::dyn_cast<llvm::PointerType>(operand->getType());
+    if (!ptr) {
+        return err(llvm::Twine("cannot dereference non-pointer type ('") +
+                   str(operand->getType()) + "')");
+    }
+    if (llvm::isa<llvm::CompositeType>(ptr->getElementType())) {
+        // defer loading until the next call to this->load(), by wrapping
+        // operand in a zero GEP
+        auto* const zero = cantFail(this->operator()(ast::IntLiteral{0}));
+        const std::array indices{zero};
+        return instance.impl->builder.CreateGEP(operand, indices, "deref_gep");
+    }
+    return instance.impl->builder.CreateLoad(operand, "dereference");
+}
+
 /////
 
 llvm::Error Visitor::operator()(const ast::StructDef& sd) const {
@@ -656,7 +699,13 @@ ReturnType Visitor::operator()(const ast::StructValue& v) const {
 ReturnType Visitor::operator()(const ast::StructMemberAccess& m) const {
     auto& builder = instance.impl->builder;
 
-    DECLARE_OR_RETURN(lhs, m.lhs->visit(*this));
+    DECLARE_OR_RETURN(lhs, [&]() -> ReturnType {
+        if (m.dereference) {
+            DECLARE_OR_RETURN(deref, this->operator()(ast::Dereference{m.lhs}));
+            return deref;
+        }
+        return m.lhs->visit(*this);
+    }());
     auto* const loadType = getLoadedType(lhs);
     assert(llvm::isa<llvm::StructType>(loadType));
 

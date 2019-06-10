@@ -48,19 +48,19 @@ OStream& operator<<(OStream& ostr, ID ty) {
     return ostr << to_string(ty);
 }
 
-inline constexpr bool is_floating(ID ty) {
+inline constexpr bool is_floating(ID ty) noexcept {
     return ty == ID::Float || ty == ID::Double;
 }
 
-inline constexpr bool is_integer(ID ty) {
+inline constexpr bool is_integer(ID ty) noexcept {
     return ty == ID::Int || ty == ID::Bool;
 }
 
-inline constexpr bool is_arithmetic(ID ty) {
+inline constexpr bool is_arithmetic(ID ty) noexcept {
     return is_floating(ty) || (is_integer(ty) && ty != ID::Bool);
 }
 
-inline constexpr bool is_user_defined(ID ty) {
+inline constexpr bool is_user_defined(ID ty) noexcept {
     return ty >= ID::UserDefinedMin;
 }
 
@@ -85,18 +85,17 @@ llvm::FunctionType* get_type(const ast::FunctionProto& proto,
                              llvm::LLVMContext& context,
                              const UserDefinedTypeTable& utt);
 
-inline bool is_void(ID t) {
+constexpr inline bool is_void(ID t) noexcept {
     return t == ID::Void;
 }
-
-inline bool is_never(ID t) {
+constexpr inline bool is_never(ID t) noexcept {
     return t == ID::Never;
 }
-inline bool is_null(ID t) {
+constexpr inline bool is_null(ID t) noexcept {
     return t == ID::Null;
 }
 
-inline std::optional<ID> matched(ID a, ID b) {
+constexpr inline std::optional<ID> matched(ID a, ID b) noexcept {
     if (a == ID::Never)
         return b;
     else if (b == ID::Never)
@@ -106,7 +105,7 @@ inline std::optional<ID> matched(ID a, ID b) {
     return std::nullopt;
 }
 
-inline bool is_valid_cast(const ID from, const ID to) {
+constexpr inline bool is_valid_cast(const ID from, const ID to) noexcept {
     return false;  // TODO
 }
 
@@ -114,14 +113,21 @@ inline bool is_valid_cast(const ID from, const ID to) {
 
 struct CompoundType;
 using InnerTypePtr = std::shared_ptr<CompoundType>;
+inline InnerTypePtr ptr(CompoundType c);
 
 struct Pointer {
+    explicit Pointer(InnerTypePtr p) : to{std::move(p)} {}
+    explicit Pointer(CompoundType t);
     InnerTypePtr to;
 };
 
 struct Array {
+    using SizeType = std::size_t;
+    explicit Array(InnerTypePtr o, SizeType s) : of{std::move(o)}, size{s} {}
+    explicit Array(CompoundType o, SizeType s);
+
     InnerTypePtr of;
-    std::size_t size;
+    SizeType size;
 };
 
 struct CompoundType : std::variant<ID, Pointer, Array> {
@@ -131,6 +137,8 @@ struct CompoundType : std::variant<ID, Pointer, Array> {
 inline InnerTypePtr ptr(CompoundType c) {
     return std::make_shared<CompoundType>(std::move(c));
 }
+inline Pointer::Pointer(CompoundType t) : Pointer{ptr(std::move(t))} {}
+inline Array::Array(CompoundType o, SizeType s) : Array{ptr(std::move(o)), s} {}
 
 std::string to_string(const CompoundType& ty,
                       const UserDefinedTypeTable* = nullptr);
@@ -143,31 +151,40 @@ llvm::Type* get_type(const CompoundType& theType,
                      const UserDefinedTypeTable& utt);
 
 namespace detail {
-inline constexpr bool unwrap_or_false(bool (*f)(ID), const CompoundType& cty) {
+inline constexpr bool unwrap_or_false(bool (*f)(ID),
+                                      const CompoundType& cty) noexcept {
     const ID* const ty = std::get_if<ID>(&cty);
     return ty && f(*ty);
 }
 }  // namespace detail
-inline constexpr bool is_floating(const CompoundType& ty) {
+inline constexpr bool is_floating(const CompoundType& ty) noexcept {
     return detail::unwrap_or_false(is_floating, ty);
 }
-inline constexpr bool is_integer(const CompoundType& ty) {
+inline constexpr bool is_integer(const CompoundType& ty) noexcept {
     return detail::unwrap_or_false(is_integer, ty);
 }
-inline constexpr bool is_arithmetic(const CompoundType& ty) {
+inline constexpr bool is_arithmetic(const CompoundType& ty) noexcept {
     return detail::unwrap_or_false(is_arithmetic, ty);
 }
-inline constexpr bool is_user_defined(const CompoundType& ty) {
+inline constexpr bool is_user_defined(const CompoundType& ty) noexcept {
     return detail::unwrap_or_false(is_user_defined, ty);
 }
-inline bool is_void(const CompoundType& ty) {
+inline constexpr bool is_void(const CompoundType& ty) noexcept {
     return detail::unwrap_or_false(is_void, ty);
 }
-inline bool is_never(const CompoundType& ty) {
+inline constexpr bool is_never(const CompoundType& ty) noexcept {
     return detail::unwrap_or_false(is_never, ty);
 }
-inline bool is_null(const CompoundType& ty) {
+inline constexpr bool is_null(const CompoundType& ty) noexcept {
     return detail::unwrap_or_false(is_null, ty);
+}
+inline constexpr bool is_pointer(const CompoundType& ty) noexcept {
+    return std::get_if<Pointer>(&ty);
+}
+inline std::optional<CompoundType> get_pointee(
+      const CompoundType& ty) noexcept {
+    return is_pointer(ty) ? std::optional{*std::get<Pointer>(ty).to}
+                          : std::nullopt;
 }
 
 std::optional<CompoundType> matched(const CompoundType& a,

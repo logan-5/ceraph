@@ -1,0 +1,73 @@
+int deref(int* p) {
+    return *p;
+}
+
+int deref_and_incr(int* p) {
+    return *p + 1;
+}
+
+double deref_and_square(double* d) {
+    return *d * *d;
+}
+
+struct S {
+    double d;
+    int i;
+}
+
+int putchar(int);
+void print_int(int i) {
+    putchar(i + 48);
+}
+
+void assign_to_members(S* s) {
+    (*s).i = 1;
+    (*s).d = (*s).d + 10.0;
+    print_int((*s).i);
+    expect((*s).i == 1);
+    expect((*s).d == 10.0);
+}
+
+void assign_to_members_with_arrows(S* s) {
+    s->i = 100;
+    s->d = s->d + 10.0;
+    expect(s->i == 100);
+    expect(s->d == 20.0);
+}
+
+int main() {
+    int x = 5;
+    int* p = &x;
+    int** q = &p;
+
+    expect(*p == 5);
+    expect(**q == 5);
+
+    expect(*p == deref(p));
+    expect(deref_and_incr(p) == 6);
+    expect(deref_and_incr(&x) == deref_and_incr(p));
+
+    S s = S.{};
+    s.d = 10.0;
+    expect(deref_and_square(&s.d) == 100.0);
+    s.d = 0.0;
+    expect(deref_and_square(&s.d) == 0.0);
+
+    assign_to_members(&s);
+    expect(s.i == 1);
+    expect(s.d == 10.0);
+
+    S* sp = &s;
+    S** spp = &sp;
+    assign_to_members_with_arrows(sp);
+    expect(sp->i == s.i);
+    expect(sp->d == s.d);
+    expect((*spp)->i == 100);
+    expect((*spp)->d == 20.0);
+
+    expect(s.i == 100);
+    (*spp)->i = 0;
+    expect(s.i == 0);
+
+    0
+}

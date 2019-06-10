@@ -209,6 +209,19 @@ struct Dump {
         indent();
         ostr << "to type: " << cast.toType;
     }
+
+    void operator()(const AddressOf& addr) const {
+        indent();
+        ostr << "address of:\n";
+        Dump next{indentLevel + 1, ostr};
+        std::visit(next, *addr.operand);
+    }
+    void operator()(const Dereference& deref) const {
+        indent();
+        ostr << "dereference:\n";
+        Dump next{indentLevel + 1, ostr};
+        std::visit(next, *deref.operand);
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

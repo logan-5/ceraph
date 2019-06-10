@@ -114,7 +114,7 @@ L?\"(\\.|[^\\"])*\"	{ count(); yylval->build<ast::Node>(ast::StringLiteral(yytex
 "<<"			{ count(); return token::LEFT_OP; }
 "++"			{ count(); return token::INC_OP; }
 "--"			{ count(); return token::DEC_OP; }
-"->"			{ count(); return token::PTR_OP; }
+"->"			{ count(); return token::ARROW; }
 "&&"			{ count(); return token::LOGICAL_AND; }
 "||"			{ count(); return token::LOGICAL_OR; }
 "<="			{ count(); return token::LE_OP; }

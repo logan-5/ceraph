@@ -236,7 +236,19 @@ auto GetType::operator()(const ast::StructValue& val) const -> ReturnType {
 }
 
 auto GetType::operator()(const ast::StructMemberAccess& m) const -> ReturnType {
-    DECLARE_OR_RETURN(lhs, m.lhs->visit(*this));
+    DECLARE_OR_RETURN(lhsOrPtr, m.lhs->visit(*this));
+    DECLARE_OR_RETURN(lhs, [&]() -> ReturnType {
+        if (m.dereference) {
+            if (auto pointee = Type::get_pointee(lhsOrPtr);
+                pointee.has_value()) {
+                return *pointee;
+            } else {
+                return err(Twine("cannot reference object of type '") +
+                           Type::to_string(lhsOrPtr) + "')");
+            }
+        }
+        return lhsOrPtr;
+    }());
     if (!Type::is_user_defined(lhs)) {
         return err(Twine("cannot do member access on a scalar type ('") +
                    Type::to_string(lhs, &typeTable.get()) + "')");
@@ -259,6 +271,23 @@ auto GetType::operator()(const ast::ExplicitCast& cast) const -> ReturnType {
                    Type::to_string(cast.toType, &typeTable.get()) + "'");
     }
     return cast.toType;
+}
+
+auto GetType::operator()(const ast::AddressOf& addr) const -> ReturnType {
+    DECLARE_OR_RETURN(operandT, addr.operand->visit(*this));
+    if (addr.operand->visit(sema::GetValueCategory{}) ==
+        sema::ValueCategory::RValue) {
+        return err("cannot take address of an rvalue");
+    }
+    return Type::Pointer{operandT};
+}
+auto GetType::operator()(const ast::Dereference& deref) const -> ReturnType {
+    DECLARE_OR_RETURN(operand, deref.operand->visit(*this));
+    if (!Type::is_pointer(operand)) {
+        return err(Twine("cannot dereference object of type '") +
+                   Type::to_string(operand) + "'");
+    }
+    return *std::get<Type::Pointer>(operand).to;
 }
 
 ///////////////////////////////////////
@@ -340,6 +369,14 @@ ValueCategory GetValueCategory::operator()(
 ValueCategory GetValueCategory::operator()(
       const ast::ExplicitCast& cast) const {
     return ValueCategory::RValue;
+}
+
+ValueCategory GetValueCategory::operator()(const ast::AddressOf& addr) const {
+    return ValueCategory::RValue;
+}
+ValueCategory GetValueCategory::operator()(
+      const ast::Dereference& deref) const {
+    return ValueCategory::LValue;
 }
 
 }  // namespace sema

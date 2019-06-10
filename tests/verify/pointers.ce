@@ -29,6 +29,12 @@ struct T {
     S********* s2;
 }
 
+T* get_t_ptr();
+
 void g() {
     let x = T.{}.s2;
+    let d = *x;
+
+    int i = 5;
+    int* p = &i;
 }

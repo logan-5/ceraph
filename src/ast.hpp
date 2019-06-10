@@ -155,11 +155,20 @@ struct StructValue {
 struct StructMemberAccess {
     NodePtr lhs;
     std::string rhs;
+    bool dereference;
 };
 
 struct ExplicitCast {
     NodePtr operand;
     Type::CompoundType toType;
+};
+
+struct AddressOf {
+    NodePtr operand;
+};
+
+struct Dereference {
+    NodePtr operand;
 };
 
 struct Node
@@ -186,7 +195,9 @@ struct Node
                    Return,
                    StructValue,
                    StructMemberAccess,
-                   ExplicitCast> {
+                   ExplicitCast,
+                   AddressOf,
+                   Dereference> {
     using variant::variant;
 
     template <typename Visitor>

@@ -82,8 +82,10 @@ YY_DECL;
 %type <ast::StructValue> struct_value;
 %type <ast::StructMemberAccess> struct_member_access;
 
+%type <bool> deref_operator;
+
 %token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF NULL_LITERAL
-%token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
+%token ARROW INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token LOGICAL_AND LOGICAL_OR MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
 %token XOR_ASSIGN OR_ASSIGN BUILTIN_NONVOID_TYPE USER_DEFINED_TYPE
@@ -199,6 +201,8 @@ postfix_expression: primary_expression { $$ = std::move($1); }
 unary_expression: postfix_expression { $$ = std::move($1); }
     | '-' postfix_expression { $$ = make_unary<Operator::Unary::Minus>($2); }
     | '<' nonvoid_type[type] '>' unary_expression[expr] { $$ = ast::ExplicitCast{ptr($expr), std::move($type)}; }
+    | '&' unary_expression { $$ = ast::AddressOf{ptr($2)}; }
+    | '*' unary_expression { $$ = ast::Dereference{ptr($2)}; }
     ;
 
 product_expression: unary_expression { $$ = std::move($1); }
@@ -289,7 +293,8 @@ struct_field: nonvoid_type IDENTIFIER ';' { $$ = ast::StructDef::Field{std::move
 
 struct_value: USER_DEFINED_TYPE '.' '{' '}' { $$ = ast::StructValue{$1}; };
 
-struct_member_access: postfix_expression '.' IDENTIFIER { $$ = ast::StructMemberAccess{ptr($1), std::move($3)}; };
+struct_member_access: postfix_expression deref_operator[deref] IDENTIFIER { $$ = ast::StructMemberAccess{ptr($1), std::move($3), $deref}; };
+deref_operator: '.' { $$ = false; } | ARROW { $$ = true; };
 
 %%
 

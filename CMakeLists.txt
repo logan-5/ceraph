@@ -2,12 +2,22 @@ cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_CXX_STANDARD 17)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+project(ceraph)
+
+option(ASAN "ASAN" OFF)
+if (ASAN)
+    message("-- enabling address sanitizer")
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+    else (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        message("address sanitizer not supported for this compiler")
+    endif (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+else (ASAN)
+    message("-- not enabling address sanitizer")
+endif (ASAN)
 
 # workaround needed for bison parse.assert
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DYY_NULLPTR=nullptr")
-
-project(ceraph)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     add_compile_options(-Wall -Wextra -Werror -Wno-unused-parameter -pedantic)
