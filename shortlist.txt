@@ -1,4 +1,3 @@
 (very short-term) TODO's:
 - struct named member initializer expressions
-- address-of, dereference operators
 - array types

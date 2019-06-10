@@ -638,8 +638,15 @@ ReturnType Visitor::operator()(const ast::AddressOf& addr) const {
     }
     // because we defer `load`ing until the value is absolutely needed, we
     // already have a pointer here. so we just need to wrap it in something --
-    // anything that's not an alloca, GEP, or PHI (which are loaded by calls to
-    // this->load())
+    // anything that's not an alloca, GEP, or PHI over allocas/GEPs (all of
+    // which are loaded by calls to this->load()).
+
+    // it seems IRBuilder simply refuses to emit bitcasts to the same type (even
+    // when using an IRBuilder<NoFolder>), so hack by casting to null and then
+    // back again. TODO this will likely break when the language gets a `signed
+    // char` primitive type, i.e. when there's another pointer type with the
+    // same underlying type as null. can we instead create and insert the
+    // instruction manually instead of using IRBuilder?
     auto& builder = instance.impl->builder;
     auto* const nullCast = builder.CreateBitCast(
           operand,
