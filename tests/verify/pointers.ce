@@ -42,4 +42,7 @@ void g() {
 
     T* t = get_t_ptr();
     *t->s->i = 0;
+
+    int j = *&i;
+    int k = *&*&*&*&*&*&*&*&*&j;
 }
