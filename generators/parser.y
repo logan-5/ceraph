@@ -49,7 +49,8 @@ YY_DECL;
 %type <Type::CompoundType> nonvoid_type type_or_void
 %type <ast::Node> expression term_expression product_expression unary_expression primary_expression postfix_expression
 %type <ast::Node> equality_expression relational_expression and_expression or_expression flow_expression
-%type <ast::Node> CONSTANT STRING_LITERAL NULL_LITERAL
+%type <ast::IntLiteral> INTEGER
+%type <ast::Node> REAL CONSTANT STRING_LITERAL NULL_LITERAL
 %type <std::string> IDENTIFIER
 
 %type <ast::Node> statement 
@@ -84,7 +85,7 @@ YY_DECL;
 
 %type <bool> deref_operator;
 
-%token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF NULL_LITERAL
+%token IDENTIFIER INTEGER REAL CONSTANT STRING_LITERAL SIZEOF NULL_LITERAL
 %token ARROW INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token LOGICAL_AND LOGICAL_OR MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
@@ -186,6 +187,8 @@ return_statement: RETURN ';' { $$ = ast::Return{}; }
 
 primary_expression: 
     IDENTIFIER { $$ = ast::Identifier{std::move($1)}; }
+    | INTEGER { $$ = std::move($1); }
+    | REAL { $$ = std::move($1); }
     | CONSTANT { $$ = std::move($1); }
 	| STRING_LITERAL { $$ = std::move($1); }
     | NULL_LITERAL { $$ = std::move($1); }
@@ -265,7 +268,9 @@ call_arg: expression { $$ = ptr($1); };
 type_or_void: nonvoid_type { $$ = std::move($1); } | VOID { $$ = Type::ID::Void; };
 nonvoid_type: BUILTIN_NONVOID_TYPE { $$ = $1; } 
     | USER_DEFINED_TYPE { $$ = $1; }
-    | nonvoid_type '*' { $$ = Type::Pointer{ptr(std::move($1))}; };
+    | nonvoid_type '*' { $$ = Type::Pointer{std::move($1)}; }
+    | '[' nonvoid_type[type] ':' INTEGER[size] ']' { $$ = Type::Array{std::move($type), static_cast<Type::Array::SizeType>($size.rep)}; }
+    ;
 
 if_else: IF expression[cond] block[then] { $$ = ast::IfElse{ptr($cond), ptr($then)}; }
     | IF expression[cond] block[then] ELSE block[else_] { $$ = ast::IfElse{ptr($cond), ptr($then), ptr($else_)}; }

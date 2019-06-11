@@ -1,0 +1,20 @@
+[int: 5] returns_an_array();
+[int*: 5] returns_an_array_of_ptrs();
+[int: 5]* returns_a_ptr_to_array();
+[[float: 4]: 4] returns_a_2D_array();
+[[int*: 5]**: 42] returns_a_crazy_array();
+
+struct S {
+    int a;
+    float b;
+}
+struct T {
+    [S: 10] ss;
+    [[S*: 20]: 5] sptrs;
+}
+
+void foo() {
+    let arr = returns_an_array();
+    
+    [int*: 5] ptrs = returns_an_array_of_ptrs();
+}

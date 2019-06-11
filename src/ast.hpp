@@ -32,6 +32,9 @@ struct Literal {
 
     static constexpr Type::ID getType() noexcept { return Ty; }
     Rep rep;
+
+   protected:
+    explicit constexpr Literal() noexcept = default;
 };
 using StringLiteral = Literal<std::string, Type::ID::StringLiteral>;
 using FloatLiteral = Literal<float, Type::ID::Float>;
@@ -46,6 +49,7 @@ template <typename Rep, Type::ID Ty>
 struct IntegerLiteral : Literal<Rep, Ty> {
     static_assert(Type::is_integer(Ty));
     using Literal<Rep, Ty>::Literal;
+
     static constexpr unsigned getNumBits() noexcept {
         return Type::num_bits<Ty>::value;
     }
