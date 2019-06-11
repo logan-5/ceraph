@@ -285,9 +285,22 @@ auto GetType::operator()(const ast::Dereference& deref) const -> ReturnType {
     DECLARE_OR_RETURN(operand, deref.operand->visit(*this));
     if (!Type::is_pointer(operand)) {
         return err(Twine("cannot dereference object of type '") +
-                   Type::to_string(operand) + "'");
+                   Type::to_string(operand, &typeTable.get()) + "'");
     }
     return *std::get<Type::Pointer>(operand).to;
+}
+auto GetType::operator()(const ast::Subscript& ss) const -> ReturnType {
+    DECLARE_OR_RETURN(lhs, ss.lhs->visit(*this));
+    if (!Type::is_array(lhs)) {
+        return err(Twine("cannot subscript object of type '") +
+                   Type::to_string(lhs, &typeTable.get()) + "'");
+    }
+    DECLARE_OR_RETURN(rhs, ss.rhs->visit(*this));
+    if (!Type::is_integer(rhs)) {
+        return err(Twine("array subscript must be an integer type (found '") +
+                   Type::to_string(rhs, &typeTable.get()) + "')");
+    }
+    return *std::get<Type::Array>(lhs).of;
 }
 
 ///////////////////////////////////////
@@ -377,6 +390,9 @@ ValueCategory GetValueCategory::operator()(const ast::AddressOf& addr) const {
 ValueCategory GetValueCategory::operator()(
       const ast::Dereference& deref) const {
     return ValueCategory::LValue;
+}
+ValueCategory GetValueCategory::operator()(const ast::Subscript& ss) const {
+    return ss.lhs->visit(*this);
 }
 
 }  // namespace sema

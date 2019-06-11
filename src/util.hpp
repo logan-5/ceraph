@@ -6,10 +6,11 @@
 #include <range/v3/algorithm/unique.hpp>
 
 #include <algorithm>
+#include <functional>
 
 namespace util {
 
-template <typename F>
+template <typename F = std::function<void()>>
 struct ScopeGuard {
     ScopeGuard(F in_f) : f{std::move(in_f)} {}
     ~ScopeGuard() { std::invoke(f); }
@@ -22,6 +23,12 @@ struct ScopeGuard {
 };
 template <typename F>
 ScopeGuard(F)->ScopeGuard<F>;
+
+template <typename F>
+auto make_heap_scopeguard(F&& f) {
+    return std::make_unique<ScopeGuard<std::remove_reference_t<F>>>(
+          std::forward(f));
+}
 
 template <typename T, typename Proj = ranges::identity>
 bool has_duplicates(std::vector<T> ts, Proj proj = {}) {

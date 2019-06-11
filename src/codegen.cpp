@@ -595,7 +595,7 @@ ReturnType Visitor::operator()(const ast::Declaration& decl) const {
 
 ReturnType Visitor::operator()(const ast::Assignment& assign) const {
     DECLARE_OR_RETURN(dest, assign.dest->visit(*this));
-    DECLARE_OR_RETURN(rhs, assign.rhs->visit(*this));
+    DECLARE_OR_RETURN(rhs, load(assign.rhs->visit(*this)));
     if (!rhs) {
         // to have typechecked and still gotten this far, the rhs must
         // have been of type Never. so this assignment will never actually
@@ -670,6 +670,29 @@ ReturnType Visitor::operator()(const ast::Dereference& deref) const {
     auto* const zero = cantFail(this->operator()(ast::IntLiteral{0}));
     return instance.impl->builder.CreateGEP(operand, llvm::ArrayRef{zero},
                                             "deref_gep");
+}
+
+ReturnType Visitor::operator()(const ast::Subscript& ss) const {
+    DECLARE_OR_RETURN(lhs, load(ss.lhs->visit(*this)));
+    auto* const loadType = getLoadedType(lhs);
+    assert(llvm::isa<llvm::ArrayType>(loadType));
+    auto* const ptr = [&]() -> llvm::Value* {
+        if (!llvm::isa<llvm::PointerType>(lhs->getType())) {
+            auto* const alloca =
+                  createAllocaInEntryBlock(loadType, "temp_alloca");
+            instance.impl->builder.CreateStore(lhs, alloca);
+            return alloca;
+        }
+        return lhs;
+    }();
+    assert(llvm::isa<llvm::PointerType>(ptr->getType()));
+
+    DECLARE_OR_RETURN(rhs, load(ss.rhs->visit(*this)));
+    assert(rhs->getType()->isIntegerTy() && "this shouldn't have typechecked");
+
+    auto* const zero = cantFail(this->operator()(ast::IntLiteral{0}));
+    const std::array indices{zero, rhs};
+    return instance.impl->builder.CreateGEP(ptr, indices, "array_subscript");
 }
 
 /////

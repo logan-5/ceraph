@@ -91,6 +91,8 @@ struct Visitor {
     ReturnType operator()(const ast::AddressOf& addr) const;
     ReturnType operator()(const ast::Dereference& deref) const;
 
+    ReturnType operator()(const ast::Subscript& ss) const;
+
     static llvm::Type* getLoadedType(llvm::Value* val);
 
    private:

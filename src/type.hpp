@@ -181,6 +181,9 @@ inline constexpr bool is_null(const CompoundType& ty) noexcept {
 inline constexpr bool is_pointer(const CompoundType& ty) noexcept {
     return std::get_if<Pointer>(&ty);
 }
+inline constexpr bool is_array(const CompoundType& ty) noexcept {
+    return std::get_if<Array>(&ty);
+}
 inline std::optional<CompoundType> get_pointee(
       const CompoundType& ty) noexcept {
     return is_pointer(ty) ? std::optional{*std::get<Pointer>(ty).to}

@@ -222,6 +222,17 @@ struct Dump {
         Dump next{indentLevel + 1, ostr};
         std::visit(next, *deref.operand);
     }
+
+    void operator()(const Subscript& ss) const {
+        indent();
+        ostr << "subscript:\n";
+        Dump next{indentLevel + 1, ostr};
+        std::visit(next, *ss.lhs);
+        ostr << '\n';
+        indent();
+        ostr << "index:\n";
+        std::visit(next, *ss.rhs);
+    }
 };
 template <typename OStream>
 Dump(unsigned, OStream&)->Dump<OStream>;

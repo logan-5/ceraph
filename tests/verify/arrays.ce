@@ -15,6 +15,23 @@ struct T {
 
 void foo() {
     let arr = returns_an_array();
-    
+    arr[0] = 1;
+    int x = arr[0];
+
     [int*: 5] ptrs = returns_an_array_of_ptrs();
+    *ptrs[0] = 0;
+    int y = *ptrs[1];
+    x = *ptrs[2];
+
+    let pa = returns_a_ptr_to_array();
+    (*pa)[0] = 1;
+    int z = (*pa)[1];
+    x = (*pa)[2];
+
+    let mat = returns_a_2D_array();
+    float f = mat[0][1];
+    float* fp = &mat[1][0];
+
+    let crazy = returns_a_crazy_array();
+    *(**crazy[30])[2] = 42;
 }

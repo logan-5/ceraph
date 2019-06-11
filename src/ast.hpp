@@ -175,6 +175,11 @@ struct Dereference {
     NodePtr operand;
 };
 
+struct Subscript {
+    NodePtr lhs;
+    NodePtr rhs;
+};
+
 struct Node
     : std::variant<NullStmt,
                    BoolLiteral,
@@ -201,7 +206,8 @@ struct Node
                    StructMemberAccess,
                    ExplicitCast,
                    AddressOf,
-                   Dereference> {
+                   Dereference,
+                   Subscript> {
     using variant::variant;
 
     template <typename Visitor>

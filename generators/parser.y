@@ -199,6 +199,7 @@ primary_expression:
 postfix_expression: primary_expression { $$ = std::move($1); }
     | function_call_expression { $$ = std::move($1); }
     | struct_member_access { $$ = std::move($1); }
+    | postfix_expression '[' expression ']' { $$ = ast::Subscript{ptr($1), ptr($3)}; }
     ;
 
 unary_expression: postfix_expression { $$ = std::move($1); }

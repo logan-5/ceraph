@@ -79,6 +79,8 @@ struct GetType {
     ReturnType operator()(const ast::AddressOf& addr) const;
     ReturnType operator()(const ast::Dereference& deref) const;
 
+    ReturnType operator()(const ast::Subscript& ss) const;
+
    private:
     ReturnType ret(const std::optional<Type::CompoundType> ty,
                    const llvm::Twine& errorMsg) const;
@@ -125,6 +127,8 @@ struct GetValueCategory {
 
     ValueCategory operator()(const ast::AddressOf& addr) const;
     ValueCategory operator()(const ast::Dereference& deref) const;
+
+    ValueCategory operator()(const ast::Subscript& deref) const;
 };
 
 }  // namespace sema
