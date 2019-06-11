@@ -1,6 +1,14 @@
 void bar(int);
 int g(double n);
 
+/* here is a C-style comment */
+/* here is a C-style comment
+   which spans multiple lines
+   and contains a * character */
+/******************************/
+// here is a C++-style comment
+////////////////////////////////
+
 void f() {
     int x = 5;
     int y = x + 1;

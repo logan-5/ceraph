@@ -33,6 +33,7 @@ IS			(u|U|l|L)*
 
 %%
 "/*"			{ comment(); }
+\/\/[^\n]*      { /* c++-style comment */ }
 
 "and"           { count(); return token::LOGICAL_AND; }
 "auto"			{ count(); return token::AUTO; }
