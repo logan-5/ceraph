@@ -119,6 +119,9 @@ struct Pointer {
     explicit Pointer(InnerTypePtr p) : to{std::move(p)} {}
     explicit Pointer(CompoundType t);
     InnerTypePtr to;
+
+    bool operator<(const Pointer& other) const;
+    bool operator==(const Pointer& other) const;
 };
 
 struct Array {
@@ -128,6 +131,9 @@ struct Array {
 
     InnerTypePtr of;
     SizeType size;
+
+    bool operator<(const Array& other) const;
+    bool operator==(const Array& other) const;
 };
 
 struct CompoundType : std::variant<ID, Pointer, Array> {
@@ -138,7 +144,19 @@ inline InnerTypePtr ptr(CompoundType c) {
     return std::make_shared<CompoundType>(std::move(c));
 }
 inline Pointer::Pointer(CompoundType t) : Pointer{ptr(std::move(t))} {}
+inline bool Pointer::operator<(const Pointer& other) const {
+    return *to < *other.to;
+}
+inline bool Pointer::operator==(const Pointer& other) const {
+    return *to == *other.to;
+}
 inline Array::Array(CompoundType o, SizeType s) : Array{ptr(std::move(o)), s} {}
+inline bool Array::operator<(const Array& other) const {
+    return std::tie(size, *of) < std::tie(other.size, *other.of);
+}
+inline bool Array::operator==(const Array& other) const {
+    return std::tie(size, *of) == std::tie(other.size, *other.of);
+}
 
 std::string to_string(const CompoundType& ty,
                       const UserDefinedTypeTable* = nullptr);

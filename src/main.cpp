@@ -48,7 +48,8 @@ int main(int argc, char** argv) {
     }
 
     codegen::CodeGenInstance instance;
-    sema::GetType typechecker{instance.getTypeTable()};
+    sema::GetType typechecker{instance.getTypeTable(),
+                              instance.getResultTable()};
     yy::parser parser{instance, typechecker};
     parser.parse();
     instance.dump(llvm::outs());

@@ -26,6 +26,18 @@ struct Dump {
         ostr << "null";
     }
 
+    void operator()(const ArrayLiteral& arr) const {
+        indent();
+        ostr << "array: [\n";
+        Dump next{indentLevel + 1, ostr};
+        for (auto& elem : arr.elems) {
+            std::visit(next, *elem);
+            ostr << '\n';
+        }
+        indent();
+        ostr << ']';
+    }
+
     void operator()(const Identifier& ident) const {
         indent();
         ostr << "[ident] " << ident.name;

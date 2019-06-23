@@ -22,12 +22,40 @@ auto err(const llvm::Twine& desc) {
 
 char TypeCheckError::ID = 1;
 
+void TypeResultTable::insert(ast::Node k, Type::CompoundType v) {
+    assert(table.find(k) == table.end());
+    table.emplace(std::move(k), std::move(v));
+}
+const Type::CompoundType& TypeResultTable::get(const ast::Node& k) const {
+    auto it = table.find(k);
+    assert(it != table.end());
+    return it->second;
+}
+
 auto GetType::ret(const std::optional<Type::CompoundType> ty,
                   const llvm::Twine& err) const -> ReturnType {
     if (ty)
         return *ty;
     else
         return llvm::make_error<TypeCheckError>(err);
+}
+
+auto GetType::operator()(const ast::ArrayLiteral& arr) const -> ReturnType {
+    if (arr.elems.empty()) {
+        return err("cannot infer type of zero-element array");
+    }
+    DECLARE_OR_RETURN(firstType, arr.elems[0]->visit(*this));
+    for (auto it = std::next(arr.elems.begin()); it != arr.elems.end(); ++it) {
+        DECLARE_OR_RETURN(elemType, (*it)->visit(*this));
+        if (!Type::matched(firstType, elemType)) {
+            return err(Twine("type mismatch in array literal elements ('") +
+                       Type::to_string(firstType) + "' vs. '" +
+                       Type::to_string(elemType) + "'");
+        }
+    }
+    const auto type = Type::Array{firstType, arr.elems.size()};
+    resultTable.get().insert(arr, type);
+    return type;
 }
 
 auto GetType::operator()(const ast::Identifier& ident) const -> ReturnType {
@@ -304,6 +332,10 @@ auto GetType::operator()(const ast::Subscript& ss) const -> ReturnType {
 }
 
 ///////////////////////////////////////
+
+ValueCategory GetValueCategory::operator()(const ast::ArrayLiteral&) const {
+    return ValueCategory::RValue;
+}
 
 ValueCategory GetValueCategory::operator()(const ast::Identifier& ident) const {
     return ValueCategory::LValue;

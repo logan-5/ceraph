@@ -66,6 +66,7 @@ struct CodeGenInstance::Impl {
     IRBuilder<> builder{context};
     std::unique_ptr<Module> module{std::make_unique<Module>("module", context)};
     scope::SymbolTable<llvm::AllocaInst*> symtable;
+    sema::TypeResultTable resultTable;
     Type::UserDefinedTypeTable typeTable{context};
 
     llvm::Function* getCurrentFunction() const {
@@ -78,6 +79,10 @@ struct CodeGenInstance::Impl {
 
 CodeGenInstance::CodeGenInstance() : impl{std::make_unique<Impl>()} {}
 CodeGenInstance::~CodeGenInstance() = default;
+
+sema::TypeResultTable& CodeGenInstance::getResultTable() const {
+    return impl->resultTable;
+}
 
 const Type::UserDefinedTypeTable& CodeGenInstance::getTypeTable() const {
     return impl->typeTable;
@@ -99,6 +104,26 @@ ReturnType Visitor::operator()(const ast::NullLiteral) const {
     auto* const nullType = Type::get_type(
           Type::ID::Null, instance.impl->context, instance.impl->typeTable);
     return instance.impl->builder.CreateIntToPtr(zero, nullType, "null");
+}
+
+ReturnType Visitor::operator()(const ast::ArrayLiteral& arr) const {
+    auto* const alloca = createAllocaInEntryBlock(
+          Type::get_type(instance.impl->resultTable.get(arr),
+                         instance.impl->context, instance.impl->typeTable),
+          "array_literal");
+
+    auto& builder = instance.impl->builder;
+    for (std::size_t i = 0; i < arr.elems.size(); ++i) {
+        DECLARE_OR_RETURN(ith, load(arr.elems[i]->visit(*this)));
+        auto* const zero = cantFail(this->operator()(ast::IntLiteral{0}));
+        auto* const idx =
+              cantFail(this->operator()(ast::IntLiteral{static_cast<int>(i)}));
+        const std::array indices{zero, idx};
+        auto* const gep =
+              builder.CreateGEP(alloca, indices, "idx" + llvm::Twine(i));
+        builder.CreateStore(ith, gep);
+    }
+    return alloca;
 }
 
 namespace {
@@ -673,7 +698,7 @@ ReturnType Visitor::operator()(const ast::Dereference& deref) const {
 }
 
 ReturnType Visitor::operator()(const ast::Subscript& ss) const {
-    DECLARE_OR_RETURN(lhs, load(ss.lhs->visit(*this)));
+    DECLARE_OR_RETURN(lhs, ss.lhs->visit(*this));
     auto* const loadType = getLoadedType(lhs);
     assert(llvm::isa<llvm::ArrayType>(loadType));
     auto* const ptr = [&]() -> llvm::Value* {

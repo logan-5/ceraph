@@ -83,6 +83,9 @@ YY_DECL;
 %type <ast::StructValue> struct_value;
 %type <ast::StructMemberAccess> struct_member_access;
 
+%type <ast::ArrayLiteral> array_literal;
+%type <ast::ArrayLiteral::Elems> array_literal_elems;
+
 %type <bool> deref_operator;
 
 %token IDENTIFIER INTEGER REAL CONSTANT STRING_LITERAL SIZEOF NULL_LITERAL
@@ -193,6 +196,7 @@ primary_expression:
 	| STRING_LITERAL { $$ = std::move($1); }
     | NULL_LITERAL { $$ = std::move($1); }
     | struct_value { $$ = std::move($1); }
+    | array_literal { $$ = std::move($1); }
 	| '(' expression ')' { $$ = std::move($2); }
 	;
 
@@ -301,6 +305,14 @@ struct_value: USER_DEFINED_TYPE '.' '{' '}' { $$ = ast::StructValue{$1}; };
 
 struct_member_access: postfix_expression deref_operator[deref] IDENTIFIER { $$ = ast::StructMemberAccess{ptr($1), std::move($3), $deref}; };
 deref_operator: '.' { $$ = false; } | ARROW { $$ = true; };
+
+maybe_comma: ',' | ;
+
+array_literal: '[' array_literal_elems[elems] maybe_comma ']' { $$ = ast::ArrayLiteral{std::move($elems)}; };
+
+array_literal_elems: expression { $$ = vec<ast::ArrayLiteral>(ptr($1)); }
+    | array_literal_elems ',' expression { $1.push_back(ptr($3)); $$ = std::move($1); }
+    ;
 
 %%
 

@@ -49,6 +49,7 @@ set(INCLUDE_DIRS ${INCLUDE_DIRS} ${GENERATED_DEST_DIR})
 
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/ast.hpp)
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/ast.cpp)
+set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/cmp_ops.hpp)
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/codegen.hpp)
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/codegen.cpp)
 set(SRC ${SRC} ${PROJECT_SOURCE_DIR}/main.cpp)

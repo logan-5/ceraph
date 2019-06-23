@@ -56,6 +56,25 @@ Iter binary_find(Iter begin,
         return end;
 }
 
+namespace detail {
+template <typename T>
+inline constexpr bool pass_by_value = std::is_trivially_copyable_v<T> &&
+                                      sizeof(T) <= 2 * sizeof(void*);
+
+template <typename T, bool = pass_by_value<T>>
+struct arg_type {
+    using type = const T&;
+};
+
+template <typename T>
+struct arg_type<T, true> {
+    using type = T;
+};
+}  // namespace detail
+
+template <typename T>
+using arg_t = typename detail::arg_type<T>::type;
+
 }  // namespace util
 
 #endif

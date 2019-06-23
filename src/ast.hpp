@@ -1,8 +1,10 @@
 #ifndef CERAPH_AST_HPP
 #define CERAPH_AST_HPP
 
+#include "cmp_ops.hpp"
 #include "operator.hpp"
 #include "type.hpp"
+#include "util.hpp"
 
 #include <ostream>
 #include <string>
@@ -33,9 +35,13 @@ struct Literal {
     static constexpr Type::ID getType() noexcept { return Ty; }
     Rep rep;
 
+    bool operator<(const Literal& rhs) const { return rep < rhs.rep; }
+    bool operator==(const Literal& rhs) const { return rep == rhs.rep; }
+
    protected:
     explicit constexpr Literal() noexcept = default;
 };
+
 using StringLiteral = Literal<std::string, Type::ID::StringLiteral>;
 using FloatLiteral = Literal<float, Type::ID::Float>;
 using DoubleLiteral = Literal<double, Type::ID::Double>;
@@ -43,12 +49,18 @@ using DoubleLiteral = Literal<double, Type::ID::Double>;
 // TODO some kinda EBO wrapper for Literal's so empty Rep's don't take up space
 struct NullLiteral : Literal<std::monostate, Type::ID::Null> {
     explicit NullLiteral() : Literal{Literal::Rep{}} {}
+
+    using Literal::getType;
 };
 
 template <typename Rep, Type::ID Ty>
 struct IntegerLiteral : Literal<Rep, Ty> {
+   private:
+    using base = Literal<Rep, Ty>;
+
+   public:
     static_assert(Type::is_integer(Ty));
-    using Literal<Rep, Ty>::Literal;
+    using base::Literal;
 
     static constexpr unsigned getNumBits() noexcept {
         return Type::num_bits<Ty>::value;
@@ -61,9 +73,16 @@ struct IntegerLiteral : Literal<Rep, Ty> {
 using BoolLiteral = IntegerLiteral<bool, Type::ID::Bool>;
 using IntLiteral = IntegerLiteral<int, Type::ID::Int>;
 
+struct ArrayLiteral {
+    using Elems = VectorWrapper<NodePtr, ArrayLiteral>;
+    Elems elems;
+};
+CMP_OPS(ArrayLiteral, elems);
+
 struct Identifier {
     std::string name;
 };
+CMP_OPS(Identifier, name);
 
 struct UnaryExpr {
     UnaryExpr(Operator::Unary in_op, NodePtr in_operand) noexcept
@@ -71,6 +90,7 @@ struct UnaryExpr {
     Operator::Unary op;
     NodePtr operand;
 };
+CMP_OPS(UnaryExpr, op, operand);
 
 struct BinaryExpr {
     BinaryExpr(Operator::Binary in_op, NodePtr in_lhs, NodePtr in_rhs) noexcept
@@ -79,6 +99,7 @@ struct BinaryExpr {
     NodePtr lhs;
     NodePtr rhs;
 };
+CMP_OPS(BinaryExpr, op, lhs, rhs);
 
 struct FunctionProto {
     Type::CompoundType returnType;
@@ -91,11 +112,14 @@ struct FunctionProto {
     using ArgList = std::vector<Arg>;
     ArgList args;
 };
+CMP_OPS(FunctionProto::Arg, type, name);
+CMP_OPS(FunctionProto, returnType, name, args);
 
 struct FunctionDef {
     FunctionProto proto;
     NodePtr body;
 };
+CMP_OPS(FunctionDef, proto, body);
 
 struct FunctionCall {
     std::string name;
@@ -103,6 +127,7 @@ struct FunctionCall {
     using ArgList = std::vector<Arg>;
     ArgList args;
 };
+CMP_OPS(FunctionCall, name, args);
 
 struct IfElse {
     IfElse(NodePtr in_cond, NodePtr in_then)
@@ -115,12 +140,14 @@ struct IfElse {
     NodePtr thenBranch;
     NodePtr elseBranch;
 };
+CMP_OPS(IfElse, cond, thenBranch, elseBranch);
 
 struct While {
     NodePtr init;
     NodePtr cond;
     NodePtr body;
 };
+CMP_OPS(While, init, cond, body);
 
 using NullStmt = std::monostate;
 
@@ -128,57 +155,69 @@ struct Block {
     using Stmts = VectorWrapper<NodePtr, Block>;
     Stmts stmts;
 };
+CMP_OPS(Block, stmts);
 
 struct Declaration {
     std::optional<Type::CompoundType> type;
     std::string name;
     NodePtr init;
 };
+CMP_OPS(Declaration, type, name, init);
 
 struct Assignment {
     NodePtr dest;
     NodePtr rhs;
 };
+CMP_OPS(Assignment, dest, rhs);
 
 struct Return {
     NodePtr value;
 };
+CMP_OPS(Return, value);
 
 struct LogicalAnd {
     NodePtr lhs, rhs;
 };
+CMP_OPS(LogicalAnd, lhs, rhs);
 
 struct LogicalOr {
     NodePtr lhs, rhs;
 };
+CMP_OPS(LogicalOr, lhs, rhs);
 
 struct StructValue {
     Type::ID type;
 };
+CMP_OPS(StructValue, type);
 
 struct StructMemberAccess {
     NodePtr lhs;
     std::string rhs;
     bool dereference;
 };
+CMP_OPS(StructMemberAccess, lhs, rhs, dereference);
 
 struct ExplicitCast {
     NodePtr operand;
     Type::CompoundType toType;
 };
+CMP_OPS(ExplicitCast, operand, toType);
 
 struct AddressOf {
     NodePtr operand;
 };
+CMP_OPS(AddressOf, operand);
 
 struct Dereference {
     NodePtr operand;
 };
+CMP_OPS(Dereference, operand);
 
 struct Subscript {
     NodePtr lhs;
     NodePtr rhs;
 };
+CMP_OPS(Subscript, lhs, rhs);
 
 struct Node
     : std::variant<NullStmt,
@@ -188,6 +227,7 @@ struct Node
                    DoubleLiteral,
                    StringLiteral,
                    NullLiteral,
+                   ArrayLiteral,
                    Identifier,
                    UnaryExpr,
                    BinaryExpr,

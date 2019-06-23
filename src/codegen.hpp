@@ -13,6 +13,10 @@ class AllocaInst;
 class Twine;
 }  // namespace llvm
 
+namespace sema {
+struct TypeResultTable;
+}
+
 namespace codegen {
 
 struct CodeGenInstance {
@@ -22,6 +26,7 @@ struct CodeGenInstance {
     bool verify(llvm::raw_ostream&) const;
     void dump(llvm::raw_ostream&) const;
 
+    sema::TypeResultTable& getResultTable() const;
     const Type::UserDefinedTypeTable& getTypeTable() const;
 
     struct Impl;
@@ -57,6 +62,8 @@ struct Visitor {
     }
 
     ReturnType operator()(const ast::NullLiteral) const;
+
+    ReturnType operator()(const ast::ArrayLiteral& arr) const;
 
     ReturnType operator()(const ast::StringLiteral& str) const;
 

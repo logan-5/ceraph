@@ -7,6 +7,7 @@
 
 #include "llvm/Support/Error.h"
 
+#include <map>
 #include <optional>
 
 namespace sema {
@@ -30,14 +31,31 @@ struct TypeCheckError : public llvm::ErrorInfo<TypeCheckError> {
     std::error_code convertToErrorCode() const override { return {}; }
 };
 
+// used for storing the results of type deductions that require lots of context
+// to figure out e.g. the type of my_array in:
+//   let my_array = [some_local, some_function(), some_struct.member];
+struct TypeResultTable {
+   public:
+    TypeResultTable() = default;
+
+    void insert(ast::Node k, Type::CompoundType v);
+    const Type::CompoundType& get(const ast::Node& k) const;
+
+   private:
+    std::map<ast::Node, Type::CompoundType> table;
+};
+
 struct GetType {
     std::reference_wrapper<const Type::UserDefinedTypeTable> typeTable;
+    std::reference_wrapper<TypeResultTable> resultTable;
     std::unique_ptr<
           scope::SymbolTable<std::optional<Type::CompoundType>, detail::None>>
           symbols;
 
-    explicit GetType(const Type::UserDefinedTypeTable& in_typeTable)
+    explicit GetType(const Type::UserDefinedTypeTable& in_typeTable,
+                     TypeResultTable& in_resultTable)
         : typeTable{in_typeTable}
+        , resultTable{in_resultTable}
         , symbols{std::make_unique<
                 scope::SymbolTable<std::optional<Type::CompoundType>,
                                    detail::None>>()} {}
@@ -48,6 +66,8 @@ struct GetType {
     ReturnType operator()(const ast::Literal<Rep, Ty>&) const {
         return Ty;
     }
+
+    ReturnType operator()(const ast::ArrayLiteral& arr) const;
 
     ReturnType operator()(const ast::Identifier& ident) const;
 
@@ -97,6 +117,8 @@ struct GetValueCategory {
     ValueCategory operator()(const ast::Literal<Rep, Ty>&) const {
         return ValueCategory::RValue;
     }
+
+    ValueCategory operator()(const ast::ArrayLiteral& arr) const;
 
     ValueCategory operator()(const ast::Identifier& ident) const;
 
