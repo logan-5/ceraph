@@ -118,6 +118,7 @@ std::string to_string(ID ty, const UserDefinedTypeTable* utt) {
 /////////////////
 // compound types
 
+namespace {
 struct ToStringVisitor {
     using ReturnType = std::string;
 
@@ -132,12 +133,14 @@ struct ToStringVisitor {
                ", size " + std::to_string(arr.size);
     }
 };
+}  // namespace
 
 std::string to_string(const CompoundType& ty,
                       const UserDefinedTypeTable* table) {
     return std::visit(ToStringVisitor{table}, ty);
 }
 
+namespace {
 struct GetLLVMTypeVisitor {
     using ReturnType = llvm::Type*;
 
@@ -155,6 +158,7 @@ struct GetLLVMTypeVisitor {
         return llvm::ArrayType::get(std::visit(*this, *arr.of), arr.size);
     }
 };
+}  // namespace
 
 llvm::Type* get_type(const CompoundType& theType,
                      llvm::LLVMContext& context,
@@ -162,6 +166,21 @@ llvm::Type* get_type(const CompoundType& theType,
     return std::visit(GetLLVMTypeVisitor{context, utt}, theType);
 }
 
+namespace {
+struct GetCompoundSubscripted {
+    using ReturnType = std::optional<CompoundType>;
+
+    ReturnType operator()(const ID) const { return std::nullopt; }
+    ReturnType operator()(const Pointer& p) const { return *p.to; }
+    ReturnType operator()(const Array& a) const { return *a.of; }
+};
+}  // namespace
+
+std::optional<CompoundType> get_subscripted(const CompoundType& ty) {
+    return std::visit(GetCompoundSubscripted{}, ty);
+}
+
+namespace {
 struct CompoundMatched {
     using ReturnType = std::optional<CompoundType>;
 
@@ -188,12 +207,14 @@ struct CompoundMatched {
         return std::nullopt;
     }
 };
+}  // namespace
 
 std::optional<CompoundType> matched(const CompoundType& a,
                                     const CompoundType& b) {
     return std::visit(CompoundMatched{}, a, b);
 }
 
+namespace {
 struct IsValidCompoundCast {
     using ReturnType = bool;
 
@@ -212,6 +233,7 @@ struct IsValidCompoundCast {
         return false;
     }
 };
+}  // namespace
 
 bool is_valid_cast(const CompoundType& from, const CompoundType& to) {
     return std::visit(IsValidCompoundCast{}, from, to);

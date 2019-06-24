@@ -319,7 +319,8 @@ auto GetType::operator()(const ast::Dereference& deref) const -> ReturnType {
 }
 auto GetType::operator()(const ast::Subscript& ss) const -> ReturnType {
     DECLARE_OR_RETURN(lhs, ss.lhs->visit(*this));
-    if (!Type::is_array(lhs)) {
+    const auto subscripted = Type::get_subscripted(lhs);
+    if (!subscripted.has_value()) {
         return err(Twine("cannot subscript object of type '") +
                    Type::to_string(lhs, &typeTable.get()) + "'");
     }
@@ -328,7 +329,7 @@ auto GetType::operator()(const ast::Subscript& ss) const -> ReturnType {
         return err(Twine("array subscript must be an integer type (found '") +
                    Type::to_string(rhs, &typeTable.get()) + "')");
     }
-    return *std::get<Type::Array>(lhs).of;
+    return *subscripted;
 }
 
 ///////////////////////////////////////

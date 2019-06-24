@@ -15,11 +15,6 @@ struct S {
     int i;
 }
 
-int putchar(int);
-void print_int(int i) {
-    putchar(i + 48);
-}
-
 void assign_to_members(S* s) {
     (*s).i = 1;
     (*s).d = (*s).d + 10.0;

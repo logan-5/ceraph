@@ -1,2 +1,4 @@
 void expect(bool);
 void expect_fail(bool);
+
+void print_int(int i);

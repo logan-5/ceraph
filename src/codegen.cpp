@@ -700,15 +700,28 @@ ReturnType Visitor::operator()(const ast::Dereference& deref) const {
 ReturnType Visitor::operator()(const ast::Subscript& ss) const {
     DECLARE_OR_RETURN(lhs, ss.lhs->visit(*this));
     auto* const loadType = getLoadedType(lhs);
-    assert(llvm::isa<llvm::ArrayType>(loadType));
+    assert(llvm::isa<llvm::ArrayType>(loadType) ||
+           llvm::isa<llvm::PointerType>(loadType));
     auto* const ptr = [&]() -> llvm::Value* {
-        if (!llvm::isa<llvm::PointerType>(lhs->getType())) {
+        llvm::Value* p = lhs;
+        if (!llvm::isa<llvm::PointerType>(p->getType())) {
             auto* const alloca =
                   createAllocaInEntryBlock(loadType, "temp_alloca");
             instance.impl->builder.CreateStore(lhs, alloca);
-            return alloca;
+            p = alloca;
         }
-        return lhs;
+        assert(llvm::isa<llvm::PointerType>(p->getType()));
+        if (auto* const pointee =
+                  llvm::cast<llvm::PointerType>(p->getType())->getElementType();
+            llvm::isa<llvm::PointerType>(pointee)) {
+            auto* const arrayType = llvm::ArrayType::get(
+                  llvm::cast<llvm::PointerType>(pointee)->getElementType(),
+                  0);  // 0 == unknown size
+            return instance.impl->builder.CreateLoad(
+                  (instance.impl->builder.CreateBitCast(
+                        p, arrayType->getPointerTo()->getPointerTo())));
+        }
+        return p;
     }();
     assert(llvm::isa<llvm::PointerType>(ptr->getType()));
 

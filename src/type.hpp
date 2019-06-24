@@ -207,6 +207,7 @@ inline std::optional<CompoundType> get_pointee(
     return is_pointer(ty) ? std::optional{*std::get<Pointer>(ty).to}
                           : std::nullopt;
 }
+std::optional<CompoundType> get_subscripted(const CompoundType& ty);
 
 std::optional<CompoundType> matched(const CompoundType& a,
                                     const CompoundType& b);
