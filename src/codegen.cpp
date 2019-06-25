@@ -703,25 +703,24 @@ ReturnType Visitor::operator()(const ast::Subscript& ss) const {
     assert(llvm::isa<llvm::ArrayType>(loadType) ||
            llvm::isa<llvm::PointerType>(loadType));
     auto* const ptr = [&]() -> llvm::Value* {
-        llvm::Value* p = lhs;
-        if (!llvm::isa<llvm::PointerType>(p->getType())) {
+        if (llvm::isa<llvm::ArrayType>(lhs->getType())) {
+            // we have an immediate array--save it on the stack so we can get a
+            // pointer to it for GEP. (TODO: or look into using extractelement,
+            // probably more efficient)
             auto* const alloca =
                   createAllocaInEntryBlock(loadType, "temp_alloca");
             instance.impl->builder.CreateStore(lhs, alloca);
-            p = alloca;
+            return alloca;
+        } else if (auto* const pointerType =
+                         llvm::dyn_cast<llvm::PointerType>(loadType)) {
+            auto* const loaded = load(lhs);
+            auto* const arrayType =
+                  llvm::ArrayType::get(pointerType->getElementType(),
+                                       0);  // 0 == unknown size
+            return instance.impl->builder.CreateBitCast(
+                  loaded, arrayType->getPointerTo());
         }
-        assert(llvm::isa<llvm::PointerType>(p->getType()));
-        if (auto* const pointee =
-                  llvm::cast<llvm::PointerType>(p->getType())->getElementType();
-            llvm::isa<llvm::PointerType>(pointee)) {
-            auto* const arrayType = llvm::ArrayType::get(
-                  llvm::cast<llvm::PointerType>(pointee)->getElementType(),
-                  0);  // 0 == unknown size
-            return instance.impl->builder.CreateLoad(
-                  (instance.impl->builder.CreateBitCast(
-                        p, arrayType->getPointerTo()->getPointerTo())));
-        }
-        return p;
+        return lhs;
     }();
     assert(llvm::isa<llvm::PointerType>(ptr->getType()));
 

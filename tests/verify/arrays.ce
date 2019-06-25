@@ -13,6 +13,9 @@ struct T {
     [[S*: 20]: 5] sptrs;
 }
 
+int* get_array();
+int** get_ptr_array();
+
 void foo() {
     let arr = returns_an_array();
     arr[0] = 1;
@@ -34,4 +37,7 @@ void foo() {
 
     let crazy = returns_a_crazy_array();
     *(**crazy[30])[2] = 42;
+
+    x = get_array()[0];
+    ptrs[0] = get_ptr_array()[5];
 }
